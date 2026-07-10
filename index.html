@@ -258,6 +258,26 @@ let bookings = [];
 let selectedSeat = null;
 let currentTicket = null;
 
+// ===== CLOCK FUNCTION - UPDATES IMMEDIATELY AND CONTINUOUSLY =====
+function updateClock(){
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('en-GB', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric'
+  });
+  const timeStr = now.toLocaleTimeString('en-GB', {
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+  document.getElementById('deskClock').textContent = dateStr + ' · ' + timeStr;
+}
+
+// Show clock immediately on page load, even before unlocking
+updateClock();
+// Then keep updating every 30 seconds
+setInterval(updateClock, 30000);
+
 function tryUnlock(){
   const val = document.getElementById('gateInput').value;
   if(val === PASSCODE){
@@ -270,13 +290,8 @@ function tryUnlock(){
 }
 document.getElementById('gateInput').addEventListener('keydown', e=>{ if(e.key==='Enter') tryUnlock(); });
 
-function updateClock(){
-  const now = new Date();
-  document.getElementById('deskClock').textContent = now.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}) + ' · ' + now.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
-}
-setInterval(updateClock, 1000*30);
-
 async function init(){
+  // Clock already running from page load, but call it once more for good measure
   updateClock();
   document.getElementById('travelDate').valueAsDate = new Date();
   await loadBookings();
