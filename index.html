@@ -7,9 +7,6 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex Mono:wght@400;500;600&display=swap" rel="stylesheet">
 
-<!-- Supabase Library -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
 <!-- EmailJS Library -->
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 
@@ -252,21 +249,6 @@
 <div class="toast" id="toast"></div>
 
 <script>
-// ===== SUPABASE CONFIGURATION =====
-const SUPABASE_URL = 'https://vrcveqhkxmvmnqeavzrc.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZyY3ZlcWhreG12bW5xZWF2enJjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM3MjkxNzIsImV4cCI6MjA5OTMwNTE3Mn0.aHWBES5ib8FWKgt6JFuq2RWZj0PpFq5W7tyeydIonoI';
-
-// Initialize Supabase
-let supabase = null;
-let supabaseReady = false;
-try {
-    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    supabaseReady = true;
-    console.log('✅ Supabase initialized');
-} catch(e) {
-    console.warn('⚠️ Supabase failed:', e);
-}
-
 // ===== EMAILJS CONFIGURATION =====
 const EMAILJS_CONFIG = {
     PUBLIC_KEY: 'tq9cIXbI9_-zFCYaH',
@@ -321,109 +303,50 @@ function tryUnlock(){
 }
 document.getElementById('gateInput').addEventListener('keydown', e=>{ if(e.key==='Enter') tryUnlock(); });
 
-// ===== SUPABASE FUNCTIONS =====
-async function loadBookingsFromSupabase() {
-    if (!supabaseReady || !supabase) {
-        console.log('⚠️ Supabase not ready, using localStorage');
-        try {
-            const localData = localStorage.getItem('transitcore_bookings');
-            if (localData) {
-                bookings = JSON.parse(localData);
-                console.log('📁 Loaded', bookings.length, 'from localStorage');
-            }
-        } catch(e) {}
-        return;
-    }
-
-    try {
-        const { data, error } = await supabase
-            .from('bookings')
-            .select('*')
-            .order('issued_at', { ascending: false });
-
-        if (error) throw error;
-
-        if (data && data.length > 0) {
-            bookings = data.map(row => ({
-                code: row.code,
-                origin: row.origin,
-                destination: row.destination,
-                travelDate: row.travel_date,
-                travelTime: row.travel_time,
-                operator: row.operator,
-                fare: row.fare,
-                custName: row.cust_name,
-                custPhone: row.cust_phone,
-                custEmail: row.cust_email,
-                custRegNo: row.cust_reg_no,
-                issuedAt: row.issued_at
-            }));
-            // Save to localStorage as backup
-            localStorage.setItem('transitcore_bookings', JSON.stringify(bookings));
-            console.log('☁️ Loaded', bookings.length, 'from Supabase');
-        }
-    } catch(error) {
-        console.error('❌ Supabase load error:', error);
-        // Fallback to localStorage
-        try {
-            const localData = localStorage.getItem('transitcore_bookings');
-            if (localData) {
-                bookings = JSON.parse(localData);
-                console.log('📁 Loaded', bookings.length, 'from localStorage (fallback)');
-            }
-        } catch(e) {}
-    }
-}
-
-async function saveTicketToSupabase(ticket) {
-    // Always save to localStorage first
-    try {
-        const existing = JSON.parse(localStorage.getItem('transitcore_bookings') || '[]');
-        const exists = existing.some(b => b.code === ticket.code);
-        if (!exists) {
-            existing.unshift(ticket);
-            localStorage.setItem('transitcore_bookings', JSON.stringify(existing));
-            console.log('💾 Saved to localStorage');
-        }
-    } catch(e) {}
-
-    if (!supabaseReady || !supabase) {
-        console.log('⚠️ Supabase not ready, saved only to localStorage');
-        return false;
-    }
-
-    try {
-        const { error } = await supabase
-            .from('bookings')
-            .insert([{
-                code: ticket.code,
-                origin: ticket.origin,
-                destination: ticket.destination,
-                travel_date: ticket.travelDate,
-                travel_time: ticket.travelTime,
-                operator: ticket.operator,
-                fare: ticket.fare,
-                cust_name: ticket.custName,
-                cust_phone: ticket.custPhone,
-                cust_email: ticket.custEmail,
-                cust_reg_no: ticket.custRegNo,
-                issued_at: new Date().toISOString()
-            }]);
-
-        if (error) throw error;
-        console.log('☁️ Saved to Supabase');
-        return true;
-    } catch(error) {
-        console.error('❌ Supabase save error:', error);
-        return false;
-    }
-}
-
 async function init(){
   updateClock();
   document.getElementById('travelDate').valueAsDate = new Date();
-  await loadBookingsFromSupabase();
+  await loadBookings();
   renderHistory();
+}
+
+async function loadBookings(){
+  try{
+    const res = await window.storage.get('bookings-all', true);
+    bookings = res && res.value ? JSON.parse(res.value) : [];
+  }catch(e){
+    bookings = [];
+  }
+}
+
+async function saveBookings(){
+  try{
+    await window.storage.set('bookings-all', JSON.stringify(bookings), true);
+  }catch(e){
+    console.error('Could not save booking', e);
+  }
+}
+
+// ===== NEW: Generate ticket code using Reg No =====
+function genCode(regNo){
+  // Clean the registration number: remove spaces and special characters, convert to uppercase
+  const cleanReg = regNo.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+  
+  // If reg no is empty, fallback to random code
+  if(!cleanReg){
+    const chars='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let rand='';
+    for(let i=0;i<6;i++) rand += chars[Math.floor(Math.random()*chars.length)];
+    return `TRC-${rand}`;
+  }
+  
+  // Generate random 4-character suffix for uniqueness
+  const chars='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let suffix = '';
+  for(let i=0;i<4;i++) suffix += chars[Math.floor(Math.random()*chars.length)];
+  
+  // Format: TRC-REGNO-SUFFIX (e.g., TRC-2500523-A7K9)
+  return `TRC-${cleanReg}-${suffix}`;
 }
 
 function formatDate(dstr){
@@ -444,22 +367,7 @@ function showToast(message, type = 'success'){
   }, 4000);
 }
 
-// ===== Generate ticket code using Reg No =====
-function genCode(regNo){
-  const cleanReg = regNo.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
-  if(!cleanReg){
-    const chars='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-    let rand='';
-    for(let i=0;i<6;i++) rand += chars[Math.floor(Math.random()*chars.length)];
-    return `TRC-${rand}`;
-  }
-  const chars='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  let suffix = '';
-  for(let i=0;i<4;i++) suffix += chars[Math.floor(Math.random()*chars.length)];
-  return `TRC-${cleanReg}-${suffix}`;
-}
-
-// ===== GENERATE TICKET PNG =====
+// ===== GENERATE TICKET PNG AS DATA URL =====
 function generateTicketPNG(t) {
     return new Promise((resolve) => {
         const canvas = document.createElement('canvas');
@@ -468,9 +376,11 @@ function generateTicketPNG(t) {
         canvas.height = H;
         const ctx = canvas.getContext('2d');
         
+        // Background
         ctx.fillStyle = '#F6F1E2';
         ctx.fillRect(0, 0, W, H);
         
+        // Top band
         const grad = ctx.createLinearGradient(0, 0, W, 180);
         grad.addColorStop(0, '#0B3D2E');
         grad.addColorStop(1, '#123D2F');
@@ -485,6 +395,7 @@ function generateTicketPNG(t) {
         ctx.font = "10px Arial";
         ctx.fillText(('STUDENT TRANSIT, SORTED · ' + t.operator).toUpperCase(), 30, 85);
         
+        // Route
         ctx.fillStyle = '#132018';
         ctx.font = "600 32px Georgia, serif";
         ctx.fillText(t.origin, 30, 170);
@@ -498,6 +409,7 @@ function generateTicketPNG(t) {
         ctx.font = "600 32px Georgia, serif";
         ctx.fillText(t.destination, 30 + oW + 55, 170);
         
+        // Dashed line
         ctx.strokeStyle = '#C9C2A6';
         ctx.setLineDash([6, 4]);
         ctx.beginPath();
@@ -506,6 +418,7 @@ function generateTicketPNG(t) {
         ctx.stroke();
         ctx.setLineDash([]);
         
+        // Grid details
         const rows = [
             ['PASSENGER', t.custName, 'REG NO', t.custRegNo],
             ['DATE', formatDate(t.travelDate), 'DEPARTURE', t.travelTime],
@@ -528,6 +441,7 @@ function generateTicketPNG(t) {
             y += 55;
         });
         
+        // Dashed line
         ctx.strokeStyle = '#C9C2A6';
         ctx.setLineDash([6, 4]);
         ctx.beginPath();
@@ -538,6 +452,7 @@ function generateTicketPNG(t) {
         
         y += 40;
         
+        // Ticket code
         ctx.fillStyle = '#8a9188';
         ctx.font = "9px Arial";
         ctx.fillText('TICKET CODE', 30, y);
@@ -545,8 +460,10 @@ function generateTicketPNG(t) {
         ctx.font = "700 20px 'Courier New', monospace";
         ctx.fillText(t.code, 30, y + 28);
         
+        // IMPORTANT INSTRUCTIONS
         const instY = y + 70;
         
+        // Border box for important instructions
         ctx.strokeStyle = '#C9A34E';
         ctx.lineWidth = 2;
         ctx.strokeRect(25, instY - 10, W - 50, 75);
@@ -562,11 +479,13 @@ function generateTicketPNG(t) {
         ctx.fillText('• Show this ticket on your device OR print it out', 30, instY + 44);
         ctx.fillText('• Valid ID card is MANDATORY for entry', 30, instY + 60);
         
+        // Footer
         const footerY = instY + 95;
         ctx.fillStyle = '#8a9188';
         ctx.font = "9px Arial";
         ctx.fillText('Issued via TransitCore Ticket Desk · Student Transit, Sorted', 30, footerY);
         
+        // QR Code
         const qrImg = new Image();
         qrImg.crossOrigin = 'anonymous';
         const qrData = encodeURIComponent(`TransitCore|${t.code}|${t.origin}-${t.destination}|${t.travelDate} ${t.travelTime}|${t.custName}|${t.custRegNo}`);
@@ -636,6 +555,7 @@ async function generateTicket(){
   }
   errEl.textContent='';
 
+  // Generate code using registration number
   const code = genCode(custRegNo);
   
   const ticket = {
@@ -644,10 +564,8 @@ async function generateTicket(){
     issuedAt: new Date().toISOString()
   };
   
-  // Save to Supabase
-  await saveTicketToSupabase(ticket);
-  
   bookings.push(ticket);
+  await saveBookings();
   currentTicket = ticket;
   renderTicket(ticket);
   renderHistory();
@@ -736,12 +654,15 @@ async function sendWhatsapp(){
   try {
     showToast('📱 Generating ticket image...', 'success');
     
-    await generateTicketPNG(currentTicket);
+    // Generate the ticket PNG
+    const imageDataUrl = await generateTicketPNG(currentTicket);
     
+    // Format phone number
     let phone = currentTicket.custPhone.replace(/[^0-9]/g,'');
     if(phone.startsWith('0')) phone = '234'+phone.slice(1);
     if(!phone.startsWith('234') && phone.length===10) phone = '234'+phone;
     
+    // Create message with clear instructions
     const text = encodeURIComponent(
       `🎟️ *TRANSITCORE TICKET*\n\n` +
       `Hello ${currentTicket.custName},\n\n` +
@@ -756,10 +677,12 @@ async function sendWhatsapp(){
       `— TransitCore · Student Transit, Sorted`
     );
     
+    // Open WhatsApp with the text
     window.open(`https://wa.me/${phone}?text=${text}`, '_blank');
     
     showToast('📱 WhatsApp opened! Send the ticket image manually.', 'success');
     
+    // Also trigger download so they can attach it
     setTimeout(() => {
       showToast('💡 Download the PNG and attach it to WhatsApp', 'success');
     }, 2000);
