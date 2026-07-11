@@ -5,7 +5,7 @@
 <title>TransitCore — Ticket Desk</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   :root{
     --emerald-deep:#0B3D2E;
@@ -55,21 +55,6 @@
   .field input, .field select{width:100%;padding:10px 12px;border-radius:8px;border:1px solid var(--line);background:var(--emerald-mid);color:var(--ivory);font-family:'Inter',sans-serif;font-size:14px;}
   .field input::placeholder{color:#6f8478;}
   .field input:focus, .field select:focus{outline:none;border-color:var(--brass);}
-
-  /* seat map */
-  .bus-shell{background:var(--emerald-mid);border:1px solid var(--line);border-radius:16px;padding:18px;margin-top:6px;}
-  .bus-driver{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--sage);text-align:right;padding-bottom:10px;border-bottom:1px dashed var(--line);margin-bottom:12px;letter-spacing:1px;}
-  .seat-grid{display:flex;flex-direction:column;gap:8px;}
-  .seat-row{display:grid;grid-template-columns:1fr 1fr 24px 1fr 1fr;gap:6px;align-items:center;}
-  .seat{aspect-ratio:1;border-radius:6px 6px 3px 3px;border:1px solid var(--brass);background:transparent;color:var(--brass-light);font-family:'IBM Plex Mono',monospace;font-size:11px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;}
-  .seat:hover{background:rgba(201,163,78,0.15);}
-  .seat.taken{border-color:#4a564d;color:#4a564d;cursor:not-allowed;text-decoration:line-through;}
-  .seat.selected{background:var(--brass);color:var(--emerald-black);font-weight:700;}
-  .aisle-gap{width:24px;}
-  .seat-legend{display:flex;gap:16px;margin-top:14px;font-size:11px;color:var(--sage);}
-  .legend-dot{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px;border:1px solid var(--brass);}
-  .legend-dot.taken{border-color:#4a564d;}
-  .legend-dot.selected{background:var(--brass);border-color:var(--brass);}
 
   .generate-btn{width:100%;padding:14px;margin-top:20px;border:none;border-radius:10px;background:var(--brass);color:var(--emerald-black);font-weight:700;font-size:15px;cursor:pointer;font-family:'Inter',sans-serif;}
   .generate-btn:disabled{background:#4a564d;color:#8aa894;cursor:not-allowed;}
@@ -223,28 +208,17 @@
         <input id="custRegNo" placeholder="e.g. LU/23/1234" required>
       </div>
 
-      <div class="section-title" style="margin-top:22px;"><span class="num">3</span> Pick a seat</div>
-      <div class="bus-shell">
-        <div class="bus-driver">◤ DRIVER</div>
-        <div class="seat-grid" id="seatGrid"></div>
-        <div class="seat-legend">
-          <span><span class="legend-dot"></span>Available</span>
-          <span><span class="legend-dot selected"></span>Selected</span>
-          <span><span class="legend-dot taken"></span>Taken</span>
-        </div>
-      </div>
-
       <button class="generate-btn" id="genBtn" onclick="generateTicket()">Generate ticket</button>
       <div class="form-error" id="formError"></div>
     </div>
 
     <!-- RIGHT: TICKET PREVIEW -->
     <div class="panel panel-right">
-      <div class="section-title"><span class="num">4</span> Ticket</div>
+      <div class="section-title"><span class="num">3</span> Ticket</div>
       <div class="ticket-wrap" id="ticketWrap">
         <div class="empty-state">
           <span class="big">No ticket yet</span>
-          Fill in trip and passenger details, pick a seat,<br>then generate — the ticket appears here.
+          Fill in trip and passenger details,<br>then generate — the ticket appears here.
         </div>
       </div>
 
@@ -261,10 +235,8 @@
 
 <script>
 const PASSCODE = "John+2558"; // change this to whatever you like
-const ROWS = 12;
 
 let bookings = [];
-let selectedSeat = null;
 let currentTicket = null;
 
 // ===== CLOCK FUNCTION - UPDATES IMMEDIATELY AND CONTINUOUSLY =====
@@ -300,15 +272,10 @@ function tryUnlock(){
 document.getElementById('gateInput').addEventListener('keydown', e=>{ if(e.key==='Enter') tryUnlock(); });
 
 async function init(){
-  // Clock already running from page load, but call it once more for good measure
   updateClock();
   document.getElementById('travelDate').valueAsDate = new Date();
   await loadBookings();
-  buildSeatGrid();
   renderHistory();
-  ['origin','destination','travelDate','travelTime'].forEach(id=>{
-    document.getElementById(id).addEventListener('change', ()=>{ selectedSeat=null; buildSeatGrid(); });
-  });
 }
 
 async function loadBookings(){
@@ -325,48 +292,6 @@ async function saveBookings(){
     await window.storage.set('bookings-all', JSON.stringify(bookings), true);
   }catch(e){
     console.error('Could not save booking', e);
-  }
-}
-
-function tripKey(){
-  const o = document.getElementById('origin').value.trim().toLowerCase();
-  const d = document.getElementById('destination').value.trim().toLowerCase();
-  const dt = document.getElementById('travelDate').value;
-  const tm = document.getElementById('travelTime').value;
-  return `${o}__${d}__${dt}__${tm}`;
-}
-
-function takenSeatsForTrip(){
-  const key = tripKey();
-  return bookings.filter(b=>b.tripKey===key).map(b=>b.seat);
-}
-
-function buildSeatGrid(){
-  const grid = document.getElementById('seatGrid');
-  grid.innerHTML='';
-  const taken = takenSeatsForTrip();
-  for(let r=1;r<=ROWS;r++){
-    const row = document.createElement('div');
-    row.className='seat-row';
-    const seatNums = [ (r-1)*4+1, (r-1)*4+2, null, (r-1)*4+3, (r-1)*4+4 ];
-    seatNums.forEach((n,i)=>{
-      if(n===null){
-        const gap = document.createElement('div'); gap.className='aisle-gap';
-        row.appendChild(gap); return;
-      }
-      const btn = document.createElement('button');
-      btn.className='seat';
-      btn.textContent = n;
-      btn.type='button';
-      if(taken.includes(n)){
-        btn.classList.add('taken');
-        btn.disabled = true;
-      }
-      if(selectedSeat===n) btn.classList.add('selected');
-      btn.onclick = ()=>{ selectedSeat = n; buildSeatGrid(); };
-      row.appendChild(btn);
-    });
-    grid.appendChild(row);
   }
 }
 
@@ -407,18 +332,12 @@ async function generateTicket(){
     errEl.textContent = 'All fields are required. Please fill in trip details, passenger info (name, phone, email, reg no), and fare.';
     return;
   }
-  if(!selectedSeat){
-    errEl.textContent = 'Pick a seat for this passenger.';
-    return;
-  }
   errEl.textContent='';
 
   const code = genCode();
   const ticket = {
     code, origin, destination, travelDate, travelTime, operator,
     fare, custName, custPhone, custEmail, custRegNo,
-    seat: selectedSeat,
-    tripKey: tripKey(),
     issuedAt: new Date().toISOString()
   };
   bookings.push(ticket);
@@ -426,8 +345,6 @@ async function generateTicket(){
   currentTicket = ticket;
   renderTicket(ticket);
   renderHistory();
-  selectedSeat = null;
-  buildSeatGrid();
 }
 
 function renderTicket(t){
@@ -451,7 +368,6 @@ function renderTicket(t){
       <div class="ticket-grid">
         <div class="tg-item"><div class="tg-label">Passenger</div><div class="tg-value">${t.custName}</div></div>
         <div class="tg-item"><div class="tg-label">Reg No</div><div class="tg-value">${t.custRegNo}</div></div>
-        <div class="tg-item"><div class="tg-label">Seat</div><div class="tg-value">${t.seat}</div></div>
         <div class="tg-item"><div class="tg-label">Date</div><div class="tg-value">${formatDate(t.travelDate)}</div></div>
         <div class="tg-item"><div class="tg-label">Departure</div><div class="tg-value">${t.travelTime}</div></div>
         <div class="tg-item"><div class="tg-label">Fare paid</div><div class="tg-value">₦${Number(t.fare).toLocaleString()}</div></div>
@@ -478,7 +394,6 @@ function ticketMessage(t){
     + `Date: ${formatDate(t.travelDate)}\n`
     + `Departure: ${t.travelTime}\n`
     + `Operator: ${t.operator}\n`
-    + `Seat: ${t.seat}\n`
     + `Passenger: ${t.custName}\n`
     + `Reg No: ${t.custRegNo}\n`
     + `Phone: ${t.custPhone}\n`
@@ -511,7 +426,7 @@ function downloadTicket(){
   if(!currentTicket) return;
   const t = currentTicket;
   const canvas = document.createElement('canvas');
-  const W=840, H=820;
+  const W=840, H=780;
   canvas.width=W; canvas.height=H;
   const ctx = canvas.getContext('2d');
 
@@ -554,21 +469,21 @@ function downloadTicket(){
   ctx.beginPath(); ctx.moveTo(30,280); ctx.lineTo(W-30,280); ctx.stroke();
   ctx.setLineDash([]);
 
-  // grid details - updated with 4 rows
+  // grid details
   const rows = [
     ['PASSENGER', t.custName, 'REG NO', t.custRegNo],
-    ['SEAT', String(t.seat), 'DATE', formatDate(t.travelDate)],
-    ['DEPARTURE', t.travelTime, 'FARE PAID', '₦'+Number(t.fare).toLocaleString()],
-    ['PHONE', t.custPhone, 'EMAIL', t.custEmail]
+    ['DATE', formatDate(t.travelDate), 'DEPARTURE', t.travelTime],
+    ['FARE PAID', '₦'+Number(t.fare).toLocaleString(), 'PHONE', t.custPhone],
+    ['EMAIL', t.custEmail, '', '']
   ];
   let y = 330;
   rows.forEach(r=>{
     ctx.fillStyle = '#8a9188'; ctx.font = "11px Arial";
     ctx.fillText(r[0], 40, y);
-    ctx.fillText(r[2], 440, y);
+    if(r[2]) ctx.fillText(r[2], 440, y);
     ctx.fillStyle = '#132018'; ctx.font = "600 20px 'Courier New', monospace";
     ctx.fillText(r[1], 40, y+28);
-    ctx.fillText(r[3], 440, y+28);
+    if(r[3]) ctx.fillText(r[3], 440, y+28);
     y += 70;
   });
 
@@ -624,7 +539,7 @@ function renderHistory(){
     <div class="history-row" onclick='reopenTicket("${b.code}")'>
       <div>
         <div class="hr-name">${b.custName}</div>
-        <div class="hr-route">${b.origin} → ${b.destination} · Seat ${b.seat} · ${b.custRegNo || ''}</div>
+        <div class="hr-route">${b.origin} → ${b.destination} · ${b.custRegNo || ''}</div>
       </div>
       <div class="hr-code">${b.code}</div>
     </div>
