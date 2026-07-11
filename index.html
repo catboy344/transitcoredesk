@@ -5,7 +5,11 @@
 <title>TransitCore — Ticket Desk</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<!-- EmailJS Library -->
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+
 <style>
   :root{
     --emerald-deep:#0B3D2E;
@@ -92,8 +96,10 @@
   .ticket-actions{display:flex;gap:10px;margin-top:18px;width:100%;max-width:420px;flex-wrap:wrap;}
   .action-btn{flex:1;min-width:120px;padding:11px;border-radius:9px;border:1px solid var(--line);background:var(--emerald-mid);color:var(--ivory);font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;}
   .action-btn.whatsapp{background:#25D366;color:#0a1b15;border-color:#25D366;}
+  .action-btn.email{background:#EA4335;color:#fff;border-color:#EA4335;}
   .action-btn.download{background:var(--brass);color:var(--emerald-black);border-color:var(--brass);}
   .action-btn:hover{filter:brightness(1.08);}
+  .action-btn:disabled{opacity:0.6;cursor:not-allowed;filter:none;}
 
   /* history */
   .history{margin-top:26px;width:100%;max-width:420px;}
@@ -107,6 +113,12 @@
   .history-row .hr-name{color:var(--ivory);}
   .history-row .hr-route{color:var(--sage);font-size:11px;}
   .history-empty{color:var(--sage);font-size:12px;text-align:center;padding:14px;}
+
+  /* Toast notification */
+  .toast{position:fixed;bottom:30px;right:30px;background:var(--emerald-mid);color:var(--ivory);padding:16px 24px;border-radius:12px;border:1px solid var(--brass);box-shadow:0 10px 40px rgba(0,0,0,0.5);font-size:14px;z-index:999;transform:translateY(100px);opacity:0;transition:all 0.4s ease;max-width:400px;}
+  .toast.show{transform:translateY(0);opacity:1;}
+  .toast.success{border-color:#4CAF50;}
+  .toast.error{border-color:var(--rust);}
 
   ::-webkit-scrollbar{width:8px;}
   ::-webkit-scrollbar-thumb{background:var(--emerald-mid);border-radius:8px;}
@@ -233,13 +245,35 @@
   </div>
 </div>
 
+<!-- Toast Notification -->
+<div class="toast" id="toast"></div>
+
 <script>
-const PASSCODE = "John+2558"; // change this to whatever you like
+// ===== EMAILJS CONFIGURATION =====
+const EMAILJS_CONFIG = {
+    PUBLIC_KEY: 'tq9cIXbI9_-zFCYaH',
+    SERVICE_ID: 'service_twtzeca',
+    TEMPLATE_ID: 'template_fvjhkoj'
+};
+
+// Initialize EmailJS
+(function() {
+    try {
+        emailjs.init(EMAILJS_CONFIG.PUBLIC_KEY);
+        console.log('✅ EmailJS initialized successfully!');
+    } catch(e) {
+        console.warn('⚠️ EmailJS not initialized. Email sending will not work.');
+    }
+})();
+
+// ===== END EMAILJS CONFIG =====
+
+const PASSCODE = "John+2558";
 
 let bookings = [];
 let currentTicket = null;
 
-// ===== CLOCK FUNCTION - UPDATES IMMEDIATELY AND CONTINUOUSLY =====
+// ===== CLOCK FUNCTION =====
 function updateClock(){
   const now = new Date();
   const dateStr = now.toLocaleDateString('en-GB', {
@@ -254,9 +288,7 @@ function updateClock(){
   document.getElementById('deskClock').textContent = dateStr + ' · ' + timeStr;
 }
 
-// Show clock immediately on page load, even before unlocking
 updateClock();
-// Then keep updating every 30 seconds
 setInterval(updateClock, 30000);
 
 function tryUnlock(){
@@ -314,6 +346,55 @@ function formatDate(dstr){
   return d.toLocaleDateString('en-GB',{weekday:'short',day:'2-digit',month:'short',year:'numeric'});
 }
 
+function showToast(message, type = 'success'){
+  const toast = document.getElementById('toast');
+  toast.textContent = message;
+  toast.className = 'toast ' + type;
+  void toast.offsetWidth;
+  toast.classList.add('show');
+  clearTimeout(toast._timeout);
+  toast._timeout = setTimeout(() => {
+    toast.classList.remove('show');
+  }, 4000);
+}
+
+// ===== SEND AUTO-REPLY EMAIL VIA EMAILJS =====
+async function sendAutoReplyEmail(ticket) {
+    try {
+        const templateParams = {
+            to_name: ticket.custName,
+            email: ticket.custEmail,
+            ticket_code: ticket.code,
+            origin: ticket.origin,
+            destination: ticket.destination,
+            travel_date: formatDate(ticket.travelDate),
+            travel_time: ticket.travelTime,
+            operator: ticket.operator,
+            fare: '₦' + Number(ticket.fare).toLocaleString(),
+            reg_no: ticket.custRegNo,
+            phone: ticket.custPhone,
+            passenger_name: ticket.custName
+        };
+
+        console.log('📧 Sending email to:', ticket.custEmail);
+        console.log('📝 Template params:', templateParams);
+
+        const response = await emailjs.send(
+            EMAILJS_CONFIG.SERVICE_ID,
+            EMAILJS_CONFIG.TEMPLATE_ID,
+            templateParams
+        );
+
+        console.log('✅ Auto-reply email sent successfully!', response.status, response.text);
+        showToast('✉️ Ticket confirmation email sent to ' + ticket.custEmail + '!', 'success');
+        return true;
+    } catch(error) {
+        console.error('❌ Failed to send auto-reply email:', error);
+        showToast('⚠️ Could not send email. Please check EmailJS configuration.', 'error');
+        return false;
+    }
+}
+
 async function generateTicket(){
   const origin = document.getElementById('origin').value.trim();
   const destination = document.getElementById('destination').value.trim();
@@ -327,7 +408,6 @@ async function generateTicket(){
   const custRegNo = document.getElementById('custRegNo').value.trim();
   const errEl = document.getElementById('formError');
 
-  // Check all required fields
   if(!origin||!destination||!travelDate||!travelTime||!custName||!custPhone||!custEmail||!custRegNo||!fare){
     errEl.textContent = 'All fields are required. Please fill in trip details, passenger info (name, phone, email, reg no), and fare.';
     return;
@@ -340,11 +420,17 @@ async function generateTicket(){
     fare, custName, custPhone, custEmail, custRegNo,
     issuedAt: new Date().toISOString()
   };
+  
   bookings.push(ticket);
   await saveBookings();
   currentTicket = ticket;
   renderTicket(ticket);
   renderHistory();
+  
+  showToast('🎫 Ticket generated successfully!', 'success');
+  
+  // ===== SEND AUTO-REPLY EMAIL =====
+  await sendAutoReplyEmail(ticket);
 }
 
 function renderTicket(t){
@@ -381,9 +467,9 @@ function renderTicket(t){
       </div>
     </div>
     <div class="ticket-actions">
-      <button class="action-btn whatsapp" onclick="sendWhatsapp()">Send · WhatsApp</button>
-      <button class="action-btn" onclick="sendEmail()">Send · Email</button>
-      <button class="action-btn download" onclick="downloadTicket()">Download PNG</button>
+      <button class="action-btn whatsapp" onclick="sendWhatsapp()">📱 WhatsApp</button>
+      <button class="action-btn email" onclick="sendManualEmail()">✉️ Resend Email</button>
+      <button class="action-btn download" onclick="downloadTicket()">⬇️ Download PNG</button>
     </div>
   `;
 }
@@ -405,36 +491,40 @@ function ticketMessage(t){
 }
 
 function sendWhatsapp(){
-  if(!currentTicket) return;
+  if(!currentTicket) {
+    showToast('No ticket to send!', 'error');
+    return;
+  }
   let phone = currentTicket.custPhone.replace(/[^0-9]/g,'');
   if(phone.startsWith('0')) phone = '234'+phone.slice(1);
   if(!phone.startsWith('234') && phone.length===10) phone = '234'+phone;
   const text = encodeURIComponent(ticketMessage(currentTicket));
   window.open(`https://wa.me/${phone}?text=${text}`, '_blank');
+  showToast('📱 Opening WhatsApp...', 'success');
 }
 
-function sendEmail(){
-  if(!currentTicket) return;
-  const t = currentTicket;
-  const subject = encodeURIComponent(`Your TransitCore ticket — ${t.origin} to ${t.destination} (${t.code})`);
-  const body = encodeURIComponent(ticketMessage(t));
-  const to = t.custEmail || '';
-  window.location.href = `mailto:${to}?subject=${subject}&body=${body}`;
+async function sendManualEmail(){
+  if(!currentTicket) {
+    showToast('No ticket to send!', 'error');
+    return;
+  }
+  await sendAutoReplyEmail(currentTicket);
 }
 
 function downloadTicket(){
-  if(!currentTicket) return;
+  if(!currentTicket) {
+    showToast('No ticket to download!', 'error');
+    return;
+  }
   const t = currentTicket;
   const canvas = document.createElement('canvas');
   const W=840, H=780;
   canvas.width=W; canvas.height=H;
   const ctx = canvas.getContext('2d');
 
-  // background
   ctx.fillStyle = '#F6F1E2';
   ctx.fillRect(0,0,W,H);
 
-  // top band
   const grad = ctx.createLinearGradient(0,0,W,180);
   grad.addColorStop(0,'#0B3D2E'); grad.addColorStop(1,'#123D2F');
   ctx.fillStyle = grad;
@@ -446,30 +536,24 @@ function downloadTicket(){
   ctx.font = "12px Arial";
   ctx.fillText(('STUDENT TRANSIT, SORTED · ' + t.operator).toUpperCase(), 40, 100);
 
-  // route
   ctx.fillStyle = '#132018';
   ctx.font = "600 40px Georgia, serif";
   ctx.fillText(t.origin, 40, 230);
   ctx.font = "22px Arial";
   ctx.fillStyle = '#C9A34E';
-  const originWidth = ctx.measureText(t.origin).width;
-  ctx.font = "600 40px Georgia, serif";
   const oW = ctx.measureText(t.origin).width;
   ctx.font = "26px Arial";
   ctx.fillStyle = '#C9A34E';
   ctx.fillText('→', 40+oW+20, 226);
   ctx.font = "600 40px Georgia, serif";
   ctx.fillStyle = '#132018';
-  const arrowW = ctx.measureText('→').width;
   ctx.fillText(t.destination, 40+oW+80, 230);
 
-  // dashed line
   ctx.strokeStyle = '#C9C2A6';
   ctx.setLineDash([8,6]);
   ctx.beginPath(); ctx.moveTo(30,280); ctx.lineTo(W-30,280); ctx.stroke();
   ctx.setLineDash([]);
 
-  // grid details
   const rows = [
     ['PASSENGER', t.custName, 'REG NO', t.custRegNo],
     ['DATE', formatDate(t.travelDate), 'DEPARTURE', t.travelTime],
@@ -487,13 +571,11 @@ function downloadTicket(){
     y += 70;
   });
 
-  // dashed line
   ctx.strokeStyle = '#C9C2A6';
   ctx.setLineDash([8,6]);
   ctx.beginPath(); ctx.moveTo(30,610); ctx.lineTo(W-30,610); ctx.stroke();
   ctx.setLineDash([]);
 
-  // code
   ctx.fillStyle = '#8a9188'; ctx.font = "11px Arial";
   ctx.fillText('TICKET CODE', 40, 660);
   ctx.fillStyle = '#0B3D2E'; ctx.font = "700 30px 'Courier New', monospace";
@@ -521,6 +603,7 @@ function triggerDownload(canvas, code){
   link.download = `${code}.png`;
   link.href = canvas.toDataURL('image/png');
   link.click();
+  showToast('⬇️ Downloading ticket...', 'success');
 }
 
 function renderHistory(){
@@ -551,6 +634,7 @@ function reopenTicket(code){
   if(!t) return;
   currentTicket = t;
   renderTicket(t);
+  showToast('🔄 Loaded ticket: ' + t.code, 'success');
 }
 </script>
 </body>
