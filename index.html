@@ -5,7 +5,7 @@
 <title>TransitCore — Ticket Desk</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex Mono:wght@400;500;600&display=swap" rel="stylesheet">
 
 <!-- EmailJS Library -->
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
@@ -158,7 +158,7 @@
       <div class="field-row">
         <div class="field">
           <label>Origin</label>
-          <input list="originList" id="origin" placeholder="Landmark University" value="Landmark University">
+          <input list="originList" id="origin" placeholder="Landmark University" value="Landmark University Main Campus">
         </div>
         <div class="field">
           <label>Destination</label>
@@ -166,7 +166,7 @@
         </div>
       </div>
       <datalist id="originList">
-        <option value="Landmark University"></option>
+        <option value="Landmark University Main Campus"></option>
       </datalist>
       <datalist id="destinationList">
         <option value="Lagos Island"></option>
@@ -327,17 +327,26 @@ async function saveBookings(){
   }
 }
 
-function genCode(){
-  const chars='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  let code;
-  do{
+// ===== NEW: Generate ticket code using Reg No =====
+function genCode(regNo){
+  // Clean the registration number: remove spaces and special characters, convert to uppercase
+  const cleanReg = regNo.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+  
+  // If reg no is empty, fallback to random code
+  if(!cleanReg){
+    const chars='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
     let rand='';
     for(let i=0;i<6;i++) rand += chars[Math.floor(Math.random()*chars.length)];
-    const d = new Date();
-    const ymd = `${String(d.getFullYear()).slice(2)}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`;
-    code = `TC-${ymd}-${rand}`;
-  } while(bookings.some(b=>b.code===code));
-  return code;
+    return `TRC-${rand}`;
+  }
+  
+  // Generate random 4-character suffix for uniqueness
+  const chars='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let suffix = '';
+  for(let i=0;i<4;i++) suffix += chars[Math.floor(Math.random()*chars.length)];
+  
+  // Format: TRC-REGNO-SUFFIX (e.g., TRC-2500523-A7K9)
+  return `TRC-${cleanReg}-${suffix}`;
 }
 
 function formatDate(dstr){
@@ -362,7 +371,7 @@ function showToast(message, type = 'success'){
 function generateTicketPNG(t) {
     return new Promise((resolve) => {
         const canvas = document.createElement('canvas');
-        const W = 600, H = 850;
+        const W = 600, H = 880;
         canvas.width = W;
         canvas.height = H;
         const ctx = canvas.getContext('2d');
@@ -448,15 +457,33 @@ function generateTicketPNG(t) {
         ctx.font = "9px Arial";
         ctx.fillText('TICKET CODE', 30, y);
         ctx.fillStyle = '#0B3D2E';
-        ctx.font = "700 22px 'Courier New', monospace";
+        ctx.font = "700 20px 'Courier New', monospace";
         ctx.fillText(t.code, 30, y + 28);
         
-        // Instructions
-        ctx.fillStyle = '#5c6b60';
-        ctx.font = "10px Arial";
+        // IMPORTANT INSTRUCTIONS
         const instY = y + 70;
-        ctx.fillText('📌 Please arrive 30 minutes before departure with a valid ID.', 30, instY);
-        ctx.fillText('📱 Show this ticket on your device or print it out.', 30, instY + 18);
+        
+        // Border box for important instructions
+        ctx.strokeStyle = '#C9A34E';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(25, instY - 10, W - 50, 75);
+        ctx.lineWidth = 1;
+        
+        ctx.fillStyle = '#B5482A';
+        ctx.font = "bold 11px Arial";
+        ctx.fillText('⚠️ IMPORTANT TRAVEL REQUIREMENTS', 30, instY + 8);
+        
+        ctx.fillStyle = '#132018';
+        ctx.font = "10px Arial";
+        ctx.fillText('• Arrive at the terminal 30 minutes before departure', 30, instY + 28);
+        ctx.fillText('• Show this ticket on your device OR print it out', 30, instY + 44);
+        ctx.fillText('• Valid ID card is MANDATORY for entry', 30, instY + 60);
+        
+        // Footer
+        const footerY = instY + 95;
+        ctx.fillStyle = '#8a9188';
+        ctx.font = "9px Arial";
+        ctx.fillText('Issued via TransitCore Ticket Desk · Student Transit, Sorted', 30, footerY);
         
         // QR Code
         const qrImg = new Image();
@@ -528,7 +555,9 @@ async function generateTicket(){
   }
   errEl.textContent='';
 
-  const code = genCode();
+  // Generate code using registration number
+  const code = genCode(custRegNo);
+  
   const ticket = {
     code, origin, destination, travelDate, travelTime, operator,
     fare, custName, custPhone, custEmail, custRegNo,
@@ -541,7 +570,7 @@ async function generateTicket(){
   renderTicket(ticket);
   renderHistory();
   
-  showToast('🎫 Ticket generated successfully!', 'success');
+  showToast('🎫 Ticket generated! Code: ' + code, 'success');
   await sendAutoReplyEmail(ticket);
 }
 
@@ -577,6 +606,14 @@ function renderTicket(t){
         <div class="code-text"><span class="label">Ticket code</span>${t.code}</div>
         <div class="qr-box"><img src="${qrUrl}" alt="QR"></div>
       </div>
+      <div style="padding: 12px 24px 18px; border-top: 2px dashed #C9C2A6; background: #FFF8E1;">
+        <div style="color: #B5482A; font-size: 11px; font-weight: 700; margin-bottom: 4px;">⚠️ IMPORTANT:</div>
+        <div style="color: #132018; font-size: 11px; line-height: 1.5;">
+          • Arrive 30 minutes before departure<br>
+          • Show this ticket on your device OR print it out<br>
+          • Valid ID card is <strong>MANDATORY</strong> for entry
+        </div>
+      </div>
     </div>
     <div class="ticket-actions">
       <button class="action-btn whatsapp" onclick="sendWhatsapp()">📱 WhatsApp</button>
@@ -601,10 +638,10 @@ function ticketMessage(t){
     + `Email: ${t.custEmail}\n\n`
     + `💰 *Fare Paid: ₦${Number(t.fare).toLocaleString()}*\n\n`
     + `🎫 *Ticket Code: ${t.code}*\n\n`
-    + `📌 *IMPORTANT:*\n`
-    + `• Please arrive 30 minutes before departure\n`
+    + `⚠️ *IMPORTANT REQUIREMENTS:*\n`
+    + `• Arrive 30 minutes before departure\n`
     + `• Show this ticket on your device OR print it out\n`
-    + `• Carry a valid ID for verification\n\n`
+    + `• Valid ID card is MANDATORY for entry\n\n`
     + `— TransitCore · Student Transit, Sorted`;
 }
 
@@ -629,17 +666,18 @@ async function sendWhatsapp(){
     const text = encodeURIComponent(
       `🎟️ *TRANSITCORE TICKET*\n\n` +
       `Hello ${currentTicket.custName},\n\n` +
-      `Your ticket is attached below.\n\n` +
-      `📌 *IMPORTANT:*\n` +
-      `• Show this ticket on your device OR print it out\n` +
+      `Your ticket is ready!\n\n` +
+      `🎫 *Ticket Code:* ${currentTicket.code}\n` +
+      `📍 ${currentTicket.origin} → ${currentTicket.destination}\n` +
+      `📅 ${formatDate(currentTicket.travelDate)} at ${currentTicket.travelTime}\n\n` +
+      `⚠️ *IMPORTANT:*\n` +
       `• Arrive 30 minutes before departure\n` +
-      `• Carry a valid ID for verification\n\n` +
+      `• Valid ID card is MANDATORY for entry\n` +
+      `• Show this ticket on your device OR print it out\n\n` +
       `— TransitCore · Student Transit, Sorted`
     );
     
-    // Open WhatsApp with the image
-    // Note: We use wa.me for text + they'll need to manually attach the image
-    // For a better experience, they can save the image from the ticket view
+    // Open WhatsApp with the text
     window.open(`https://wa.me/${phone}?text=${text}`, '_blank');
     
     showToast('📱 WhatsApp opened! Send the ticket image manually.', 'success');
@@ -715,3 +753,4 @@ function reopenTicket(code){
 </script>
 </body>
 </html>
+
