@@ -358,6 +358,123 @@ function showToast(message, type = 'success'){
   }, 4000);
 }
 
+// ===== GENERATE TICKET PNG AS DATA URL =====
+function generateTicketPNG(t) {
+    return new Promise((resolve) => {
+        const canvas = document.createElement('canvas');
+        const W = 600, H = 850;
+        canvas.width = W;
+        canvas.height = H;
+        const ctx = canvas.getContext('2d');
+        
+        // Background
+        ctx.fillStyle = '#F6F1E2';
+        ctx.fillRect(0, 0, W, H);
+        
+        // Top band
+        const grad = ctx.createLinearGradient(0, 0, W, 180);
+        grad.addColorStop(0, '#0B3D2E');
+        grad.addColorStop(1, '#123D2F');
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, W, 130);
+        
+        ctx.fillStyle = '#E7CB84';
+        ctx.font = "700 28px Georgia, serif";
+        ctx.fillText('TransitCore', 30, 60);
+        
+        ctx.fillStyle = '#8AA894';
+        ctx.font = "10px Arial";
+        ctx.fillText(('STUDENT TRANSIT, SORTED · ' + t.operator).toUpperCase(), 30, 85);
+        
+        // Route
+        ctx.fillStyle = '#132018';
+        ctx.font = "600 32px Georgia, serif";
+        ctx.fillText(t.origin, 30, 170);
+        
+        ctx.fillStyle = '#C9A34E';
+        ctx.font = "22px Arial";
+        const oW = ctx.measureText(t.origin).width;
+        ctx.fillText('→', 30 + oW + 15, 166);
+        
+        ctx.fillStyle = '#132018';
+        ctx.font = "600 32px Georgia, serif";
+        ctx.fillText(t.destination, 30 + oW + 55, 170);
+        
+        // Dashed line
+        ctx.strokeStyle = '#C9C2A6';
+        ctx.setLineDash([6, 4]);
+        ctx.beginPath();
+        ctx.moveTo(25, 210);
+        ctx.lineTo(W - 25, 210);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        
+        // Grid details
+        const rows = [
+            ['PASSENGER', t.custName, 'REG NO', t.custRegNo],
+            ['DATE', formatDate(t.travelDate), 'DEPARTURE', t.travelTime],
+            ['FARE PAID', '₦' + Number(t.fare).toLocaleString(), 'PHONE', t.custPhone],
+            ['EMAIL', t.custEmail, '', '']
+        ];
+        
+        let y = 250;
+        rows.forEach(r => {
+            ctx.fillStyle = '#8a9188';
+            ctx.font = "9px Arial";
+            ctx.fillText(r[0], 30, y);
+            if (r[2]) ctx.fillText(r[2], 310, y);
+            
+            ctx.fillStyle = '#132018';
+            ctx.font = "600 16px 'Courier New', monospace";
+            ctx.fillText(r[1], 30, y + 22);
+            if (r[3]) ctx.fillText(r[3], 310, y + 22);
+            
+            y += 55;
+        });
+        
+        // Dashed line
+        ctx.strokeStyle = '#C9C2A6';
+        ctx.setLineDash([6, 4]);
+        ctx.beginPath();
+        ctx.moveTo(25, y + 10);
+        ctx.lineTo(W - 25, y + 10);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        
+        y += 40;
+        
+        // Ticket code
+        ctx.fillStyle = '#8a9188';
+        ctx.font = "9px Arial";
+        ctx.fillText('TICKET CODE', 30, y);
+        ctx.fillStyle = '#0B3D2E';
+        ctx.font = "700 22px 'Courier New', monospace";
+        ctx.fillText(t.code, 30, y + 28);
+        
+        // Instructions
+        ctx.fillStyle = '#5c6b60';
+        ctx.font = "10px Arial";
+        const instY = y + 70;
+        ctx.fillText('📌 Please arrive 30 minutes before departure with a valid ID.', 30, instY);
+        ctx.fillText('📱 Show this ticket on your device or print it out.', 30, instY + 18);
+        
+        // QR Code
+        const qrImg = new Image();
+        qrImg.crossOrigin = 'anonymous';
+        const qrData = encodeURIComponent(`TransitCore|${t.code}|${t.origin}-${t.destination}|${t.travelDate} ${t.travelTime}|${t.custName}|${t.custRegNo}`);
+        qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=120x120&margin=0&data=${qrData}`;
+        
+        qrImg.onload = function() {
+            ctx.drawImage(qrImg, W - 150, 155, 120, 120);
+            resolve(canvas.toDataURL('image/png'));
+        };
+        
+        qrImg.onerror = function() {
+            resolve(canvas.toDataURL('image/png'));
+        };
+    });
+}
+
 // ===== SEND AUTO-REPLY EMAIL VIA EMAILJS =====
 async function sendAutoReplyEmail(ticket) {
     try {
@@ -376,20 +493,17 @@ async function sendAutoReplyEmail(ticket) {
             passenger_name: ticket.custName
         };
 
-        console.log('📧 Sending email to:', ticket.custEmail);
-        console.log('📝 Template params:', templateParams);
-
         const response = await emailjs.send(
             EMAILJS_CONFIG.SERVICE_ID,
             EMAILJS_CONFIG.TEMPLATE_ID,
             templateParams
         );
 
-        console.log('✅ Auto-reply email sent successfully!', response.status, response.text);
+        console.log('✅ Auto-reply email sent!', response.status);
         showToast('✉️ Ticket confirmation email sent to ' + ticket.custEmail + '!', 'success');
         return true;
     } catch(error) {
-        console.error('❌ Failed to send auto-reply email:', error);
+        console.error('❌ Failed to send email:', error);
         showToast('⚠️ Could not send email. Please check EmailJS configuration.', 'error');
         return false;
     }
@@ -409,7 +523,7 @@ async function generateTicket(){
   const errEl = document.getElementById('formError');
 
   if(!origin||!destination||!travelDate||!travelTime||!custName||!custPhone||!custEmail||!custRegNo||!fare){
-    errEl.textContent = 'All fields are required. Please fill in trip details, passenger info (name, phone, email, reg no), and fare.';
+    errEl.textContent = 'All fields are required.';
     return;
   }
   errEl.textContent='';
@@ -428,8 +542,6 @@ async function generateTicket(){
   renderHistory();
   
   showToast('🎫 Ticket generated successfully!', 'success');
-  
-  // ===== SEND AUTO-REPLY EMAIL =====
   await sendAutoReplyEmail(ticket);
 }
 
@@ -475,40 +587,80 @@ function renderTicket(t){
 }
 
 function ticketMessage(t){
-  return `🎟️ *TransitCore Ticket*\n\n`
-    + `${t.origin} → ${t.destination}\n`
+  return `🎟️ *TRANSITCORE TICKET*\n\n`
+    + `📍 *Trip Details*\n`
+    + `From: ${t.origin}\n`
+    + `To: ${t.destination}\n`
     + `Date: ${formatDate(t.travelDate)}\n`
     + `Departure: ${t.travelTime}\n`
-    + `Operator: ${t.operator}\n`
-    + `Passenger: ${t.custName}\n`
+    + `Operator: ${t.operator}\n\n`
+    + `👤 *Passenger*\n`
+    + `Name: ${t.custName}\n`
     + `Reg No: ${t.custRegNo}\n`
     + `Phone: ${t.custPhone}\n`
-    + `Email: ${t.custEmail}\n`
-    + `Fare paid: ₦${Number(t.fare).toLocaleString()}\n\n`
-    + `Ticket code: ${t.code}\n`
-    + `Please arrive 30 minutes before departure with a valid ID.\n\n`
-    + `— TransitCore, Student Transit Sorted`;
+    + `Email: ${t.custEmail}\n\n`
+    + `💰 *Fare Paid: ₦${Number(t.fare).toLocaleString()}*\n\n`
+    + `🎫 *Ticket Code: ${t.code}*\n\n`
+    + `📌 *IMPORTANT:*\n`
+    + `• Please arrive 30 minutes before departure\n`
+    + `• Show this ticket on your device OR print it out\n`
+    + `• Carry a valid ID for verification\n\n`
+    + `— TransitCore · Student Transit, Sorted`;
 }
 
-function sendWhatsapp(){
+async function sendWhatsapp(){
   if(!currentTicket) {
     showToast('No ticket to send!', 'error');
     return;
   }
-  let phone = currentTicket.custPhone.replace(/[^0-9]/g,'');
-  if(phone.startsWith('0')) phone = '234'+phone.slice(1);
-  if(!phone.startsWith('234') && phone.length===10) phone = '234'+phone;
-  const text = encodeURIComponent(ticketMessage(currentTicket));
-  window.open(`https://wa.me/${phone}?text=${text}`, '_blank');
-  showToast('📱 Opening WhatsApp...', 'success');
+  
+  try {
+    showToast('📱 Generating ticket image...', 'success');
+    
+    // Generate the ticket PNG
+    const imageDataUrl = await generateTicketPNG(currentTicket);
+    
+    // Format phone number
+    let phone = currentTicket.custPhone.replace(/[^0-9]/g,'');
+    if(phone.startsWith('0')) phone = '234'+phone.slice(1);
+    if(!phone.startsWith('234') && phone.length===10) phone = '234'+phone;
+    
+    // Create message with clear instructions
+    const text = encodeURIComponent(
+      `🎟️ *TRANSITCORE TICKET*\n\n` +
+      `Hello ${currentTicket.custName},\n\n` +
+      `Your ticket is attached below.\n\n` +
+      `📌 *IMPORTANT:*\n` +
+      `• Show this ticket on your device OR print it out\n` +
+      `• Arrive 30 minutes before departure\n` +
+      `• Carry a valid ID for verification\n\n` +
+      `— TransitCore · Student Transit, Sorted`
+    );
+    
+    // Open WhatsApp with the image
+    // Note: We use wa.me for text + they'll need to manually attach the image
+    // For a better experience, they can save the image from the ticket view
+    window.open(`https://wa.me/${phone}?text=${text}`, '_blank');
+    
+    showToast('📱 WhatsApp opened! Send the ticket image manually.', 'success');
+    
+    // Also trigger download so they can attach it
+    setTimeout(() => {
+      showToast('💡 Download the PNG and attach it to WhatsApp', 'success');
+    }, 2000);
+    
+  } catch(error) {
+    console.error('WhatsApp error:', error);
+    showToast('❌ Error opening WhatsApp', 'error');
+  }
 }
 
-async function sendManualEmail(){
+function sendManualEmail(){
   if(!currentTicket) {
     showToast('No ticket to send!', 'error');
     return;
   }
-  await sendAutoReplyEmail(currentTicket);
+  sendAutoReplyEmail(currentTicket);
 }
 
 function downloadTicket(){
@@ -516,94 +668,18 @@ function downloadTicket(){
     showToast('No ticket to download!', 'error');
     return;
   }
-  const t = currentTicket;
-  const canvas = document.createElement('canvas');
-  const W=840, H=780;
-  canvas.width=W; canvas.height=H;
-  const ctx = canvas.getContext('2d');
-
-  ctx.fillStyle = '#F6F1E2';
-  ctx.fillRect(0,0,W,H);
-
-  const grad = ctx.createLinearGradient(0,0,W,180);
-  grad.addColorStop(0,'#0B3D2E'); grad.addColorStop(1,'#123D2F');
-  ctx.fillStyle = grad;
-  ctx.fillRect(0,0,W,150);
-  ctx.fillStyle = '#E7CB84';
-  ctx.font = "700 34px Georgia, serif";
-  ctx.fillText('TransitCore', 40, 70);
-  ctx.fillStyle = '#8AA894';
-  ctx.font = "12px Arial";
-  ctx.fillText(('STUDENT TRANSIT, SORTED · ' + t.operator).toUpperCase(), 40, 100);
-
-  ctx.fillStyle = '#132018';
-  ctx.font = "600 40px Georgia, serif";
-  ctx.fillText(t.origin, 40, 230);
-  ctx.font = "22px Arial";
-  ctx.fillStyle = '#C9A34E';
-  const oW = ctx.measureText(t.origin).width;
-  ctx.font = "26px Arial";
-  ctx.fillStyle = '#C9A34E';
-  ctx.fillText('→', 40+oW+20, 226);
-  ctx.font = "600 40px Georgia, serif";
-  ctx.fillStyle = '#132018';
-  ctx.fillText(t.destination, 40+oW+80, 230);
-
-  ctx.strokeStyle = '#C9C2A6';
-  ctx.setLineDash([8,6]);
-  ctx.beginPath(); ctx.moveTo(30,280); ctx.lineTo(W-30,280); ctx.stroke();
-  ctx.setLineDash([]);
-
-  const rows = [
-    ['PASSENGER', t.custName, 'REG NO', t.custRegNo],
-    ['DATE', formatDate(t.travelDate), 'DEPARTURE', t.travelTime],
-    ['FARE PAID', '₦'+Number(t.fare).toLocaleString(), 'PHONE', t.custPhone],
-    ['EMAIL', t.custEmail, '', '']
-  ];
-  let y = 330;
-  rows.forEach(r=>{
-    ctx.fillStyle = '#8a9188'; ctx.font = "11px Arial";
-    ctx.fillText(r[0], 40, y);
-    if(r[2]) ctx.fillText(r[2], 440, y);
-    ctx.fillStyle = '#132018'; ctx.font = "600 20px 'Courier New', monospace";
-    ctx.fillText(r[1], 40, y+28);
-    if(r[3]) ctx.fillText(r[3], 440, y+28);
-    y += 70;
+  
+  showToast('⬇️ Generating PNG...', 'success');
+  
+  generateTicketPNG(currentTicket).then(dataUrl => {
+    const link = document.createElement('a');
+    link.download = `${currentTicket.code}.png`;
+    link.href = dataUrl;
+    link.click();
+    showToast('✅ Ticket downloaded!', 'success');
+  }).catch(err => {
+    showToast('❌ Error downloading ticket', 'error');
   });
-
-  ctx.strokeStyle = '#C9C2A6';
-  ctx.setLineDash([8,6]);
-  ctx.beginPath(); ctx.moveTo(30,610); ctx.lineTo(W-30,610); ctx.stroke();
-  ctx.setLineDash([]);
-
-  ctx.fillStyle = '#8a9188'; ctx.font = "11px Arial";
-  ctx.fillText('TICKET CODE', 40, 660);
-  ctx.fillStyle = '#0B3D2E'; ctx.font = "700 30px 'Courier New', monospace";
-  ctx.fillText(t.code, 40, 695);
-
-  ctx.fillStyle = '#5c6b60'; ctx.font = "12px Arial";
-  ctx.fillText('Please arrive 30 minutes before departure with a valid ID.', 40, 750);
-  ctx.fillText('Issued via TransitCore Ticket Desk', 40, 770);
-
-  const qrImg = new Image();
-  qrImg.crossOrigin = 'anonymous';
-  const qrData = encodeURIComponent(`TransitCore|${t.code}|${t.origin}-${t.destination}|${t.travelDate} ${t.travelTime}|${t.custName}|${t.custRegNo}`);
-  qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&margin=0&data=${qrData}`;
-  qrImg.onload = ()=>{
-    ctx.drawImage(qrImg, W-200, 640, 140, 140);
-    triggerDownload(canvas, t.code);
-  };
-  qrImg.onerror = ()=>{
-    triggerDownload(canvas, t.code);
-  };
-}
-
-function triggerDownload(canvas, code){
-  const link = document.createElement('a');
-  link.download = `${code}.png`;
-  link.href = canvas.toDataURL('image/png');
-  link.click();
-  showToast('⬇️ Downloading ticket...', 'success');
 }
 
 function renderHistory(){
