@@ -37,7 +37,7 @@
   .brand .wordmark{font-family:'Fraunces',serif;font-weight:700;font-size:22px;letter-spacing:0.3px;color:var(--ivory);}
   .brand .tagline{font-size:11px;color:var(--sage);text-transform:uppercase;letter-spacing:1.5px;}
   .desk-label{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--brass-light);border:1px solid var(--line);padding:5px 10px;border-radius:20px;}
-  .sync-status{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--sage);margin-left:12px;}
+  .sync-status{font-family:'IBM Plex Mono',monospace;font-size:10px;margin-left:12px;}
 
   /* gate */
   .gate{flex:1;display:flex;align-items:center;justify-content:center;padding:24px;}
@@ -142,7 +142,7 @@
     <div class="brand">
       <span class="wordmark">TransitCore</span>
       <span class="tagline">Ticket Desk</span>
-      <span class="sync-status" id="syncStatus">🔄 Connecting...</span>
+      <span class="sync-status" id="syncStatus" style="color:#F6C94A;">⬇️ Loading...</span>
     </div>
     <div class="desk-label" id="deskClock">—</div>
   </div>
@@ -256,12 +256,21 @@
 
 <script>
 // ===== SUPABASE CONFIGURATION =====
-const SUPABASE_URL = 'https://vrcveqhkxmvmnqeavzrc.supabase.co'.replace(/\s/g, '');
+const SUPABASE_URL = 'https://vrcveqhkxmvmnqeavzrc.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZyY3ZlcWhreG12bW5xZWF2enJjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM3MjkxNzIsImV4cCI6MjA5OTMwNTE3Mn0.aHWBES5ib8FWKgt6JFuq2RWZj0PpFq5W7tyeydIonoI';
 
 // Initialize Supabase client
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-console.log('✅ Supabase client initialized');
+let supabase = null;
+let supabaseReady = false;
+
+try {
+    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    supabaseReady = true;
+    console.log('✅ Supabase client initialized');
+} catch(e) {
+    console.warn('⚠️ Supabase failed to initialize:', e);
+    supabaseReady = false;
+}
 
 // ===== EMAILJS CONFIGURATION =====
 const EMAILJS_CONFIG = {
@@ -271,14 +280,15 @@ const EMAILJS_CONFIG = {
 };
 
 // Initialize EmailJS
-(function() {
-    try {
-        emailjs.init(EMAILJS_CONFIG.PUBLIC_KEY);
-        console.log('✅ EmailJS initialized successfully!');
-    } catch(e) {
-        console.warn('⚠️ EmailJS not initialized.');
-    }
-})();
+let emailjsReady = false;
+try {
+    emailjs.init(EMAILJS_CONFIG.PUBLIC_KEY);
+    emailjsReady = true;
+    console.log('✅ EmailJS initialized successfully!');
+} catch(e) {
+    console.warn('⚠️ EmailJS not initialized:', e);
+    emailjsReady = false;
+}
 
 const PASSCODE = "John+2558";
 
@@ -317,28 +327,53 @@ function tryUnlock(){
 document.getElementById('gateInput').addEventListener('keydown', e=>{ if(e.key==='Enter') tryUnlock(); });
 
 // ===== SUPABASE FUNCTIONS =====
-function updateSyncStatus(status, isConnected = false) {
+function updateSyncStatus(status, type = 'info') {
   const el = document.getElementById('syncStatus');
-  if (isConnected) {
-    el.textContent = '✅ Cloud Synced';
+  el.textContent = status;
+  if (type === 'success') {
     el.style.color = '#4CAF50';
     isSynced = true;
+  } else if (type === 'error') {
+    el.style.color = '#B5482A';
+    isSynced = false;
   } else {
-    el.textContent = status;
-    el.style.color = isSynced ? '#4CAF50' : '#B5482A';
+    el.style.color = '#F6C94A';
+    isSynced = false;
   }
 }
 
 async function loadBookingsFromSupabase() {
+  // If Supabase isn't ready, try loading from localStorage
+  if (!supabaseReady || !supabase) {
+    updateSyncStatus('⚠️ Offline Mode', 'error');
+    try {
+      const localData = localStorage.getItem('transitcore_bookings');
+      if (localData) {
+        bookings = JSON.parse(localData);
+        updateSyncStatus(`📁 ${bookings.length} local tickets`, 'info');
+        renderHistory();
+      } else {
+        bookings = [];
+        updateSyncStatus('📁 No local tickets', 'info');
+      }
+    } catch(e) {
+      bookings = [];
+    }
+    return false;
+  }
+
   try {
-    updateSyncStatus('🔄 Loading from cloud...');
+    updateSyncStatus('🔄 Syncing...', 'info');
     
     const { data, error } = await supabase
       .from('bookings')
       .select('*')
       .order('issued_at', { ascending: false });
     
-    if (error) throw error;
+    if (error) {
+      console.error('Supabase error:', error);
+      throw error;
+    }
     
     if (data && data.length > 0) {
       bookings = data.map(row => ({
@@ -355,31 +390,52 @@ async function loadBookingsFromSupabase() {
         custRegNo: row.cust_reg_no,
         issuedAt: row.issued_at
       }));
-      updateSyncStatus(`✅ ${bookings.length} tickets loaded`, true);
+      updateSyncStatus(`☁️ ${bookings.length} tickets synced`, 'success');
     } else {
-      bookings = [];
-      updateSyncStatus('☁️ No tickets found', true);
+      // Try loading from localStorage
+      try {
+        const localData = localStorage.getItem('transitcore_bookings');
+        if (localData) {
+          bookings = JSON.parse(localData);
+          updateSyncStatus(`📁 ${bookings.length} local tickets`, 'info');
+        } else {
+          bookings = [];
+          updateSyncStatus('☁️ No tickets found', 'info');
+        }
+      } catch(e) {
+        bookings = [];
+        updateSyncStatus('☁️ No tickets found', 'info');
+      }
     }
     
     renderHistory();
     return true;
   } catch (error) {
     console.error('❌ Error loading from Supabase:', error);
-    updateSyncStatus('⚠️ Offline - Using local data');
+    updateSyncStatus('⚠️ Offline Mode', 'error');
     // Try to load from localStorage as fallback
     try {
       const localData = localStorage.getItem('transitcore_bookings');
       if (localData) {
         bookings = JSON.parse(localData);
-        updateSyncStatus(`⚠️ Offline - ${bookings.length} local tickets`);
+        updateSyncStatus(`📁 ${bookings.length} local tickets`, 'info');
         renderHistory();
       }
-    } catch(e) {}
+    } catch(e) {
+      bookings = [];
+    }
     return false;
   }
 }
 
 async function saveTicketToSupabase(ticket) {
+  // If Supabase isn't ready, save to localStorage only
+  if (!supabaseReady || !supabase) {
+    saveToLocalStorage(ticket);
+    showToast('💾 Saved locally (cloud unavailable)', 'info');
+    return false;
+  }
+
   try {
     const { data, error } = await supabase
       .from('bookings')
@@ -401,11 +457,15 @@ async function saveTicketToSupabase(ticket) {
       ])
       .select();
     
-    if (error) throw error;
+    if (error) {
+      console.error('Supabase insert error:', error);
+      throw error;
+    }
     
     console.log('✅ Ticket saved to Supabase:', data);
     // Also save to localStorage as backup
     saveToLocalStorage(ticket);
+    updateSyncStatus('☁️ Synced', 'success');
     return true;
   } catch (error) {
     console.error('❌ Error saving to Supabase:', error);
@@ -419,14 +479,15 @@ async function saveTicketToSupabase(ticket) {
 function saveToLocalStorage(ticket) {
   try {
     const existing = JSON.parse(localStorage.getItem('transitcore_bookings') || '[]');
-    // Check if ticket already exists
     const exists = existing.some(b => b.code === ticket.code);
     if (!exists) {
       existing.unshift(ticket);
       localStorage.setItem('transitcore_bookings', JSON.stringify(existing));
       console.log('💾 Saved to localStorage as backup');
     }
-  } catch(e) {}
+  } catch(e) {
+    console.error('Failed to save to localStorage:', e);
+  }
 }
 
 // ===== INIT =====
@@ -434,7 +495,7 @@ async function init(){
   updateClock();
   document.getElementById('travelDate').valueAsDate = new Date();
   
-  // Load from Supabase
+  // Load from Supabase or localStorage
   await loadBookingsFromSupabase();
 }
 
@@ -622,7 +683,7 @@ async function generateTicket(){
     issuedAt: new Date().toISOString()
   };
   
-  // Save to Supabase
+  // Save to Supabase or localStorage
   const saved = await saveTicketToSupabase(ticket);
   
   // Always add to local bookings array
@@ -634,11 +695,15 @@ async function generateTicket(){
   if (saved) {
     showToast('🎫 Ticket generated! Code: ' + ticket.code, 'success');
   } else {
-    showToast('⚠️ Ticket saved locally (cloud unavailable)', 'error');
+    showToast('💾 Ticket saved locally! Code: ' + ticket.code, 'info');
   }
   
-  // Send email
-  await sendAutoReplyEmail(ticket);
+  // Send email if EmailJS is ready
+  if (emailjsReady) {
+    await sendAutoReplyEmail(ticket);
+  } else {
+    console.log('📧 Email not sent (EmailJS not ready)');
+  }
 }
 
 // ===== RENDER TICKET =====
@@ -716,6 +781,11 @@ function ticketMessage(t){
 
 // ===== SEND AUTO-REPLY EMAIL =====
 async function sendAutoReplyEmail(ticket) {
+    if (!emailjsReady) {
+        console.log('📧 EmailJS not ready, skipping email');
+        return false;
+    }
+    
     try {
         const templateParams = {
             to_name: ticket.custName,
@@ -749,15 +819,13 @@ async function sendAutoReplyEmail(ticket) {
 }
 
 // ===== SEND WHATSAPP =====
-async function sendWhatsapp(){
+function sendWhatsapp(){
   if(!currentTicket) {
     showToast('No ticket to send!', 'error');
     return;
   }
   
   try {
-    showToast('📱 Opening WhatsApp...', 'info');
-    
     let phone = currentTicket.custPhone.replace(/[^0-9]/g,'');
     if(phone.startsWith('0')) phone = '234'+phone.slice(1);
     if(!phone.startsWith('234') && phone.length===10) phone = '234'+phone;
@@ -817,7 +885,6 @@ function renderHistory(){
   const list = document.getElementById('historyList');
   const q = (document.getElementById('historySearch').value || '').toLowerCase();
   
-  // Update count
   document.getElementById('ticketCount').textContent = `(${bookings.length})`;
   
   const filtered = bookings.filter(b=>
