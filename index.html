@@ -41,6 +41,7 @@
   .sync-status.synced{color:#4CAF50;border-color:#4CAF50;}
   .sync-status.error{color:var(--rust);border-color:var(--rust);}
   .sync-status.connecting{color:#FFA500;border-color:#FFA500;}
+  .refresh-btn{background:var(--brass);color:var(--emerald-black);border:none;border-radius:6px;padding:4px 12px;cursor:pointer;font-weight:600;font-size:12px;}
 
   /* gate */
   .gate{flex:1;display:flex;align-items:center;justify-content:center;padding:24px;}
@@ -48,7 +49,8 @@
   .gate-card h2{font-family:'Fraunces',serif;font-size:20px;margin:0 0 6px;color:var(--brass-light);}
   .gate-card p{font-size:13px;color:var(--sage);margin:0 0 18px;}
   .gate-card input{width:100%;padding:12px 14px;border-radius:8px;border:1px solid var(--line);background:var(--emerald-black);color:var(--ivory);font-family:'IBM Plex Mono',monospace;font-size:15px;text-align:center;letter-spacing:3px;}
-  .gate-card button{margin-top:14px;width:100%;padding:12px;border-radius:8px;border:none;background:var(--brass);color:var(--emerald-black);font-weight:700;font-size:14px;cursor:pointer;}
+  .gate-card button{margin-top:14px;width:100%;padding:12px;border-radius:8px;border:none;background:var(--brass);color:var(--emerald-black);font-weight:700;font-size:14px;cursor:pointer;transition:all 0.3s;}
+  .gate-card button:hover{transform:scale(1.02);}
   .gate-error{color:var(--rust);font-size:12px;margin-top:10px;min-height:14px;}
 
   /* main layout */
@@ -67,7 +69,8 @@
   .field input::placeholder{color:#6f8478;}
   .field input:focus, .field select:focus{outline:none;border-color:var(--brass);}
 
-  .generate-btn{width:100%;padding:14px;margin-top:20px;border:none;border-radius:10px;background:var(--brass);color:var(--emerald-black);font-weight:700;font-size:15px;cursor:pointer;font-family:'Inter',sans-serif;}
+  .generate-btn{width:100%;padding:14px;margin-top:20px;border:none;border-radius:10px;background:var(--brass);color:var(--emerald-black);font-weight:700;font-size:15px;cursor:pointer;font-family:'Inter',sans-serif;transition:all 0.3s;}
+  .generate-btn:hover{transform:scale(1.02);}
   .generate-btn:disabled{background:#4a564d;color:#8aa894;cursor:not-allowed;}
   .form-error{color:var(--rust);font-size:12px;margin-top:8px;min-height:14px;}
 
@@ -101,11 +104,11 @@
   .qr-box img{display:block;width:64px;height:64px;border-radius:6px;border:1px solid #d9d2ba;}
 
   .ticket-actions{display:flex;gap:10px;margin-top:12px;width:100%;max-width:440px;flex-wrap:wrap;}
-  .action-btn{flex:1;min-width:100px;padding:11px;border-radius:9px;border:1px solid var(--line);background:var(--emerald-mid);color:var(--ivory);font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;}
+  .action-btn{flex:1;min-width:100px;padding:11px;border-radius:9px;border:1px solid var(--line);background:var(--emerald-mid);color:var(--ivory);font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;transition:all 0.3s;}
+  .action-btn:hover{transform:scale(1.05);}
   .action-btn.whatsapp{background:#25D366;color:#0a1b15;border-color:#25D366;}
   .action-btn.email{background:#EA4335;color:#fff;border-color:#EA4335;}
   .action-btn.download{background:var(--brass);color:var(--emerald-black);border-color:var(--brass);}
-  .action-btn:hover{filter:brightness(1.08);}
   .action-btn:disabled{opacity:0.6;cursor:not-allowed;filter:none;}
 
   /* history */
@@ -114,8 +117,8 @@
   .history-head h3{font-family:'Fraunces',serif;font-size:14px;color:var(--brass-light);margin:0;}
   .history-search{padding:6px 10px;border-radius:6px;border:1px solid var(--line);background:var(--emerald-mid);color:var(--ivory);font-size:12px;font-family:'IBM Plex Mono',monospace;width:140px;}
   .history-list{max-height:200px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;}
-  .history-row{display:flex;justify-content:space-between;align-items:center;padding:9px 12px;border:1px solid var(--line);border-radius:8px;font-size:12px;background:var(--emerald-mid);cursor:pointer;}
-  .history-row:hover{border-color:var(--brass);background:#1d4635;}
+  .history-row{display:flex;justify-content:space-between;align-items:center;padding:9px 12px;border:1px solid var(--line);border-radius:8px;font-size:12px;background:var(--emerald-mid);cursor:pointer;transition:all 0.3s;}
+  .history-row:hover{border-color:var(--brass);background:#1d4635;transform:scale(1.02);}
   .history-row .hr-code{font-family:'IBM Plex Mono',monospace;color:var(--brass-light);}
   .history-row .hr-name{color:var(--ivory);}
   .history-row .hr-route{color:var(--sage);font-size:11px;}
@@ -151,7 +154,7 @@
 
   <div id="gateScreen" class="gate">
     <div class="gate-card">
-      <h2>Desk Access</h2>
+      <h2>🔐 Desk Access</h2>
       <p>Enter the desk passcode to start issuing tickets.</p>
       <input type="password" id="gateInput" placeholder="• • • • • • • •" maxlength="20">
       <button onclick="tryUnlock()">Unlock desk</button>
@@ -231,7 +234,7 @@
         <input id="custRegNo" placeholder="e.g. LU/23/1234" required>
       </div>
 
-      <button class="generate-btn" id="genBtn" onclick="generateTicket()">Generate ticket</button>
+      <button class="generate-btn" id="genBtn" onclick="generateTicket()">✨ Generate ticket</button>
       <div class="form-error" id="formError"></div>
     </div>
 
@@ -240,7 +243,7 @@
       <div class="section-title"><span class="num">3</span> Ticket</div>
       <div class="ticket-wrap" id="ticketWrap">
         <div class="empty-state">
-          <span class="big">No ticket yet</span>
+          <span class="big">🎫 No ticket yet</span>
           Fill in trip and passenger details,<br>then generate — the ticket appears here.
         </div>
       </div>
@@ -249,7 +252,7 @@
         <div class="history-head">
           <h3>Recent tickets</h3>
           <div style="display:flex;gap:8px;align-items:center;">
-            <button class="refresh-btn" onclick="refreshHistory()" style="background:var(--brass);color:var(--emerald-black);border:none;border-radius:6px;padding:4px 12px;cursor:pointer;font-weight:600;font-size:12px;">⟳ Refresh</button>
+            <button class="refresh-btn" onclick="refreshHistory()">⟳ Refresh</button>
             <input class="history-search" id="historySearch" placeholder="Search name/code" oninput="renderHistory()">
           </div>
         </div>
@@ -271,7 +274,7 @@ const SUPABASE_CONFIG = {
     ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZyY3ZlcWhreG12bW5xZWF2enJjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM3MjkxNzIsImV4cCI6MjA5OTMwNTE3Mn0.aHWBES5ib8FWKgt6JFuq2RWZj0PpFq5W7tyeydIonoI'
 };
 
-// Initialize Supabase client with better error handling
+// Initialize Supabase client
 let supabase;
 try {
     supabase = window.supabase.createClient(SUPABASE_CONFIG.URL, SUPABASE_CONFIG.ANON_KEY);
@@ -309,13 +312,39 @@ let currentTicket = null;
 let isSupabaseConnected = false;
 
 // ============================================
+// ===== LOCAL STORAGE HELPERS =====
+// ============================================
+function saveToLocalStorage() {
+    try {
+        localStorage.setItem('transitcore_bookings', JSON.stringify(bookings));
+        return true;
+    } catch (e) {
+        console.error('Could not save to local storage:', e);
+        return false;
+    }
+}
+
+function loadFromLocalStorage() {
+    try {
+        const data = localStorage.getItem('transitcore_bookings');
+        if (data) {
+            return JSON.parse(data);
+        }
+        return null;
+    } catch (e) {
+        console.error('Could not load from local storage:', e);
+        return null;
+    }
+}
+
+// ============================================
 // ===== SUPABASE FUNCTIONS =====
 // ============================================
 
 // Check Supabase connection with timeout
 async function checkSupabaseConnection() {
     if (!supabase) {
-        document.getElementById('syncStatus').textContent = '● Supabase not available';
+        document.getElementById('syncStatus').textContent = '● Supabase unavailable';
         document.getElementById('syncStatus').className = 'sync-status error';
         return false;
     }
@@ -444,27 +473,19 @@ async function loadBookings() {
         }));
         
         // Save to local storage as backup
-        await saveToLocalStorage();
+        saveToLocalStorage();
+        console.log(`📦 Loaded ${bookings.length} tickets from Supabase`);
         return;
     }
     
     // Fallback to local storage
-    try {
-        const res = await window.storage.get('bookings-all', true);
-        bookings = res && res.value ? JSON.parse(res.value) : [];
+    const localData = loadFromLocalStorage();
+    if (localData && localData.length > 0) {
+        bookings = localData;
         console.log(`📦 Loaded ${bookings.length} tickets from local storage`);
-    } catch(e) {
+    } else {
         bookings = [];
         console.log('📦 No local storage data found');
-    }
-}
-
-// Save to local storage
-async function saveToLocalStorage() {
-    try {
-        await window.storage.set('bookings-all', JSON.stringify(bookings), true);
-    } catch(e) {
-        console.error('Could not save to local storage', e);
     }
 }
 
@@ -485,7 +506,7 @@ async function saveBooking(ticket) {
     } else {
         bookings[existingIndex] = ticket;
     }
-    await saveToLocalStorage();
+    saveToLocalStorage();
     renderHistory();
 }
 
