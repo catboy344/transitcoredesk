@@ -10,6 +10,10 @@
 <!-- EmailJS Library -->
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 
+<!-- jsPDF for PDF generation -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
 <style>
   :root{
     --emerald-deep:#0B3D2E;
@@ -97,7 +101,7 @@
   .action-btn{flex:1;min-width:100px;padding:11px;border-radius:9px;border:1px solid var(--line);background:var(--emerald-mid);color:var(--ivory);font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;}
   .action-btn.whatsapp{background:#25D366;color:#0a1b15;border-color:#25D366;}
   .action-btn.email{background:#EA4335;color:#fff;border-color:#EA4335;}
-  .action-btn.download{background:var(--brass);color:var(--emerald-black);border-color:var(--brass);}
+  .action-btn.pdf{background:#FF6B35;color:#fff;border-color:#FF6B35;}
   .action-btn:hover{filter:brightness(1.08);}
   .action-btn:disabled{opacity:0.6;cursor:not-allowed;filter:none;}
 
@@ -179,6 +183,8 @@
         <option value="Ogun State"></option>
         <option value="Ibadan"></option>
         <option value="Enugu"></option>
+        <option value="Abuja"></option>
+        <option value="Kano"></option>
       </datalist>
       <div class="field-row">
         <div class="field">
@@ -364,157 +370,201 @@ function showToast(message, type = 'success'){
   }, 4000);
 }
 
-// ===== GENERATE TICKET PNG AS DATA URL =====
-function generateTicketPNG(t) {
-    return new Promise((resolve) => {
-        const canvas = document.createElement('canvas');
-        const W = 640, H = 940;
-        canvas.width = W;
-        canvas.height = H;
-        const ctx = canvas.getContext('2d');
+// ===== GENERATE TICKET PDF =====
+async function generateTicketPDF(ticket) {
+    try {
+        showToast('📄 Generating PDF...', 'success');
         
-        // Background
-        ctx.fillStyle = '#F6F1E2';
-        ctx.fillRect(0, 0, W, H);
+        // Get the ticket element
+        const ticketElement = document.getElementById('ticketCard');
+        if (!ticketElement) {
+            // If ticket not rendered, render it first
+            renderTicket(ticket);
+            await new Promise(resolve => setTimeout(resolve, 100));
+        }
         
-        // Top band
-        const grad = ctx.createLinearGradient(0, 0, W, 160);
-        grad.addColorStop(0, '#0B3D2E');
-        grad.addColorStop(1, '#123D2F');
-        ctx.fillStyle = grad;
-        ctx.fillRect(0, 0, W, 120);
+        const ticketCard = document.getElementById('ticketCard');
         
-        ctx.fillStyle = '#E7CB84';
-        ctx.font = "700 28px Georgia, serif";
-        ctx.fillText('TransitCore', 30, 60);
-        
-        ctx.fillStyle = '#8AA894';
-        ctx.font = "11px Arial";
-        ctx.fillText(('STUDENT TRANSIT, SORTED · ' + t.operator).toUpperCase(), 30, 88);
-        
-        // ROUTE - properly spaced and centered
-        ctx.fillStyle = '#132018';
-        ctx.font = "600 32px Georgia, serif";
-        
-        // Measure origin text
-        const originW = ctx.measureText(t.origin).width;
-        const destW = ctx.measureText(t.destination).width;
-        const arrowW = 40;
-        const totalW = originW + destW + arrowW + 20;
-        const startX = (W - totalW) / 2;
-        
-        // Draw origin
-        ctx.textAlign = 'left';
-        ctx.fillText(t.origin, startX, 185);
-        
-        // Draw arrow
-        ctx.fillStyle = '#C9A34E';
-        ctx.font = "24px Arial";
-        ctx.fillText('→', startX + originW + 8, 179);
-        
-        // Draw destination
-        ctx.fillStyle = '#132018';
-        ctx.font = "600 32px Georgia, serif";
-        ctx.fillText(t.destination, startX + originW + arrowW + 8, 185);
-        
-        // Sub labels
-        ctx.fillStyle = '#5c6b60';
-        ctx.font = "10px Arial";
-        ctx.textAlign = 'left';
-        ctx.fillText('ORIGIN', startX, 205);
-        ctx.fillText('DESTINATION', startX + originW + arrowW + 8 + destW - 70, 205);
-        
-        // Dashed line
-        ctx.strokeStyle = '#C9C2A6';
-        ctx.setLineDash([6, 4]);
-        ctx.beginPath();
-        ctx.moveTo(30, 230);
-        ctx.lineTo(W - 30, 230);
-        ctx.stroke();
-        ctx.setLineDash([]);
-        
-        // Grid details
-        const rows = [
-            ['PASSENGER', t.custName, 'REG NO', t.custRegNo],
-            ['DATE', formatDate(t.travelDate), 'DEPARTURE', t.travelTime],
-            ['FARE PAID', '₦' + Number(t.fare).toLocaleString(), 'PHONE', t.custPhone],
-            ['EMAIL', t.custEmail, '', '']
-        ];
-        
-        let y = 270;
-        rows.forEach(r => {
-            ctx.fillStyle = '#8a9188';
-            ctx.font = "9px Arial";
-            ctx.textAlign = 'left';
-            ctx.fillText(r[0], 30, y);
-            if (r[2]) ctx.fillText(r[2], 320, y);
-            
-            ctx.fillStyle = '#132018';
-            ctx.font = "600 16px 'Courier New', monospace";
-            ctx.fillText(r[1], 30, y + 22);
-            if (r[3]) ctx.fillText(r[3], 320, y + 22);
-            
-            y += 58;
+        // Use html2canvas to convert the ticket to image
+        const canvas = await html2canvas(ticketCard, {
+            scale: 2,
+            backgroundColor: '#F6F1E2',
+            logging: false,
+            allowTaint: true,
+            useCORS: true
         });
         
-        // Dashed line
-        ctx.strokeStyle = '#C9C2A6';
-        ctx.setLineDash([6, 4]);
-        ctx.beginPath();
-        ctx.moveTo(30, y + 6);
-        ctx.lineTo(W - 30, y + 6);
-        ctx.stroke();
-        ctx.setLineDash([]);
+        const imgData = canvas.toDataURL('image/jpeg', 0.95);
         
-        y += 40;
+        // Create PDF
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = pdf.internal.pageSize.getHeight();
         
-        // Ticket code
-        ctx.fillStyle = '#8a9188';
-        ctx.font = "9px Arial";
-        ctx.fillText('TICKET CODE', 30, y);
-        ctx.fillStyle = '#0B3D2E';
-        ctx.font = "700 20px 'Courier New', monospace";
-        ctx.fillText(t.code, 30, y + 28);
+        // Calculate image dimensions to fit on A4
+        const imgWidth = canvas.width;
+        const imgHeight = canvas.height;
+        const ratio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight);
+        const imgX = (pdfWidth - imgWidth * ratio) / 2;
+        const imgY = (pdfHeight - imgHeight * ratio) / 2;
         
-        // IMPORTANT INSTRUCTIONS
-        const instY = y + 70;
+        pdf.addImage(imgData, 'JPEG', imgX, imgY, imgWidth * ratio, imgHeight * ratio);
+        pdf.save(`${ticket.code}.pdf`);
         
-        ctx.strokeStyle = '#C9A34E';
-        ctx.lineWidth = 2;
-        ctx.strokeRect(25, instY - 10, W - 50, 85);
-        ctx.lineWidth = 1;
+        showToast('✅ PDF downloaded successfully!', 'success');
+        return true;
+    } catch(error) {
+        console.error('PDF generation error:', error);
+        showToast('❌ Error generating PDF. Trying fallback method...', 'error');
         
-        ctx.fillStyle = '#B5482A';
-        ctx.font = "bold 12px Arial";
-        ctx.fillText('⚠️ IMPORTANT TRAVEL REQUIREMENTS', 30, instY + 8);
-        
-        ctx.fillStyle = '#132018';
-        ctx.font = "11px Arial";
-        ctx.fillText('• Arrive at the terminal 30 minutes before departure', 30, instY + 30);
-        ctx.fillText('• Show this ticket on your device OR print it out', 30, instY + 50);
-        ctx.fillText('• Valid ID card is MANDATORY for entry', 30, instY + 70);
-        
-        // Footer
-        const footerY = instY + 100;
-        ctx.fillStyle = '#8a9188';
-        ctx.font = "9px Arial";
-        ctx.fillText('Issued via TransitCore Ticket Desk · Student Transit, Sorted', 30, footerY);
-        
-        // QR Code
-        const qrImg = new Image();
-        qrImg.crossOrigin = 'anonymous';
-        const qrData = encodeURIComponent(`TransitCore|${t.code}|${t.origin}-${t.destination}|${t.travelDate} ${t.travelTime}|${t.custName}|${t.custRegNo}`);
-        qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=130x130&margin=0&data=${qrData}`;
-        
-        qrImg.onload = function() {
-            ctx.drawImage(qrImg, W - 160, 120, 130, 130);
-            resolve(canvas.toDataURL('image/png'));
-        };
-        
-        qrImg.onerror = function() {
-            resolve(canvas.toDataURL('image/png'));
-        };
-    });
+        // Fallback: Use canvas-based PDF generation
+        try {
+            const { jsPDF } = window.jspdf;
+            const pdf = new jsPDF('p', 'mm', 'a4');
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            
+            // Generate canvas manually
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = 800;
+            canvas.height = 1100;
+            
+            // Draw ticket manually
+            ctx.fillStyle = '#F6F1E2';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Header
+            const grad = ctx.createLinearGradient(0, 0, canvas.width, 160);
+            grad.addColorStop(0, '#0B3D2E');
+            grad.addColorStop(1, '#123D2F');
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, canvas.width, 140);
+            
+            ctx.fillStyle = '#E7CB84';
+            ctx.font = '700 36px Georgia, serif';
+            ctx.fillText('TransitCore', 40, 70);
+            
+            ctx.fillStyle = '#8AA894';
+            ctx.font = '14px Arial';
+            ctx.fillText(('STUDENT TRANSIT, SORTED · ' + ticket.operator).toUpperCase(), 40, 100);
+            
+            // Route
+            ctx.fillStyle = '#132018';
+            ctx.font = '600 40px Georgia, serif';
+            const originW = ctx.measureText(ticket.origin).width;
+            ctx.fillText(ticket.origin, 40, 200);
+            
+            ctx.fillStyle = '#C9A34E';
+            ctx.font = '30px Arial';
+            ctx.fillText('→', 40 + originW + 15, 193);
+            
+            ctx.fillStyle = '#132018';
+            ctx.font = '600 40px Georgia, serif';
+            ctx.fillText(ticket.destination, 40 + originW + 65, 200);
+            
+            ctx.fillStyle = '#5c6b60';
+            ctx.font = '12px Arial';
+            ctx.fillText('ORIGIN', 40, 225);
+            ctx.fillText('DESTINATION', 40 + originW + 65 + ctx.measureText(ticket.destination).width - 80, 225);
+            
+            // Dashed line
+            ctx.strokeStyle = '#C9C2A6';
+            ctx.setLineDash([8, 6]);
+            ctx.beginPath();
+            ctx.moveTo(40, 250);
+            ctx.lineTo(canvas.width - 40, 250);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            
+            // Details
+            const details = [
+                ['PASSENGER', ticket.custName, 'REG NO', ticket.custRegNo],
+                ['DATE', formatDate(ticket.travelDate), 'DEPARTURE', ticket.travelTime],
+                ['FARE PAID', '₦' + Number(ticket.fare).toLocaleString(), 'PHONE', ticket.custPhone],
+                ['EMAIL', ticket.custEmail, '', '']
+            ];
+            
+            let y = 290;
+            details.forEach(row => {
+                ctx.fillStyle = '#8a9188';
+                ctx.font = '12px Arial';
+                ctx.fillText(row[0], 40, y);
+                if (row[2]) ctx.fillText(row[2], 380, y);
+                
+                ctx.fillStyle = '#132018';
+                ctx.font = '600 18px Courier New, monospace';
+                ctx.fillText(row[1], 40, y + 25);
+                if (row[3]) ctx.fillText(row[3], 380, y + 25);
+                
+                y += 65;
+            });
+            
+            // Ticket code
+            ctx.fillStyle = '#8a9188';
+            ctx.font = '12px Arial';
+            ctx.fillText('TICKET CODE', 40, y);
+            ctx.fillStyle = '#0B3D2E';
+            ctx.font = '700 24px Courier New, monospace';
+            ctx.fillText(ticket.code, 40, y + 30);
+            
+            // Important
+            const instY = y + 80;
+            ctx.strokeStyle = '#C9A34E';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(35, instY - 15, canvas.width - 70, 100);
+            
+            ctx.fillStyle = '#B5482A';
+            ctx.font = 'bold 14px Arial';
+            ctx.fillText('⚠️ IMPORTANT TRAVEL REQUIREMENTS', 45, instY + 10);
+            
+            ctx.fillStyle = '#132018';
+            ctx.font = '13px Arial';
+            ctx.fillText('• Arrive at the terminal 30 minutes before departure', 45, instY + 35);
+            ctx.fillText('• Show this ticket on your device OR print it out', 45, instY + 58);
+            ctx.fillText('• Valid ID card is MANDATORY for entry', 45, instY + 81);
+            
+            // Footer
+            ctx.fillStyle = '#8a9188';
+            ctx.font = '11px Arial';
+            ctx.fillText('Issued via TransitCore Ticket Desk · Student Transit, Sorted', 40, instY + 120);
+            
+            // QR
+            const qrImg = new Image();
+            qrImg.crossOrigin = 'anonymous';
+            const qrData = encodeURIComponent(`TransitCore|${ticket.code}|${ticket.origin}-${ticket.destination}|${ticket.travelDate} ${ticket.travelTime}|${ticket.custName}|${ticket.custRegNo}`);
+            qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&margin=0&data=${qrData}`;
+            
+            await new Promise((resolve) => {
+                qrImg.onload = function() {
+                    ctx.drawImage(qrImg, canvas.width - 190, 150, 160, 160);
+                    resolve();
+                };
+                qrImg.onerror = function() {
+                    resolve();
+                };
+                setTimeout(resolve, 3000);
+            });
+            
+            const imgData2 = canvas.toDataURL('image/jpeg', 0.95);
+            const pdfWidth2 = pdf.internal.pageSize.getWidth();
+            const pdfHeight2 = pdf.internal.pageSize.getHeight();
+            const imgWidth2 = canvas.width;
+            const imgHeight2 = canvas.height;
+            const ratio2 = Math.min(pdfWidth2 / imgWidth2, pdfHeight2 / imgHeight2);
+            const imgX2 = (pdfWidth2 - imgWidth2 * ratio2) / 2;
+            const imgY2 = (pdfHeight2 - imgHeight2 * ratio2) / 2;
+            
+            pdf.addImage(imgData2, 'JPEG', imgX2, imgY2, imgWidth2 * ratio2, imgHeight2 * ratio2);
+            pdf.save(`${ticket.code}.pdf`);
+            showToast('✅ PDF downloaded successfully!', 'success');
+            return true;
+        } catch(fallbackError) {
+            console.error('Fallback PDF generation failed:', fallbackError);
+            showToast('❌ Failed to generate PDF. Please try again.', 'error');
+            return false;
+        }
+    }
 }
 
 // ===== SEND AUTO-REPLY EMAIL VIA EMAILJS =====
@@ -632,7 +682,7 @@ function renderTicket(t){
     <div class="ticket-actions">
       <button class="action-btn whatsapp" onclick="sendWhatsapp()">📱 WhatsApp</button>
       <button class="action-btn email" onclick="sendManualEmail()">✉️ Resend Email</button>
-      <button class="action-btn download" onclick="downloadTicket()">⬇️ Download PNG</button>
+      <button class="action-btn pdf" onclick="downloadPDF()">📄 Download PDF</button>
     </div>
   `;
 }
@@ -666,9 +716,7 @@ async function sendWhatsapp(){
   }
   
   try {
-    showToast('📱 Generating ticket image...', 'success');
-    
-    const imageDataUrl = await generateTicketPNG(currentTicket);
+    showToast('📱 Preparing WhatsApp message...', 'success');
     
     let phone = currentTicket.custPhone.replace(/[^0-9]/g,'');
     if(phone.startsWith('0')) phone = '234'+phone.slice(1);
@@ -680,20 +728,21 @@ async function sendWhatsapp(){
       `Your ticket is ready!\n\n` +
       `🎫 *Ticket Code:* ${currentTicket.code}\n` +
       `📍 ${currentTicket.origin} → ${currentTicket.destination}\n` +
-      `📅 ${formatDate(currentTicket.travelDate)} at ${currentTicket.travelTime}\n\n` +
+      `📅 ${formatDate(currentTicket.travelDate)} at ${currentTicket.travelTime}\n` +
+      `💰 Fare: ₦${Number(currentTicket.fare).toLocaleString()}\n\n` +
       `⚠️ *IMPORTANT:*\n` +
       `• Arrive 30 minutes before departure\n` +
       `• Valid ID card is MANDATORY for entry\n` +
-      `• Show this ticket on your device OR print it out\n\n` +
+      `• Print this ticket or show on your device\n\n` +
       `— TransitCore · Student Transit, Sorted`
     );
     
     window.open(`https://wa.me/${phone}?text=${text}`, '_blank');
     
-    showToast('📱 WhatsApp opened! Send the ticket image manually.', 'success');
+    showToast('📱 WhatsApp opened! You can also download the PDF to attach.', 'success');
     
     setTimeout(() => {
-      showToast('💡 Download the PNG and attach it to WhatsApp', 'success');
+      showToast('💡 Download PDF and attach to WhatsApp if needed', 'success');
     }, 2000);
     
   } catch(error) {
@@ -710,23 +759,12 @@ function sendManualEmail(){
   sendAutoReplyEmail(currentTicket);
 }
 
-function downloadTicket(){
+async function downloadPDF(){
   if(!currentTicket) {
     showToast('No ticket to download!', 'error');
     return;
   }
-  
-  showToast('⬇️ Generating PNG...', 'success');
-  
-  generateTicketPNG(currentTicket).then(dataUrl => {
-    const link = document.createElement('a');
-    link.download = `${currentTicket.code}.png`;
-    link.href = dataUrl;
-    link.click();
-    showToast('✅ Ticket downloaded!', 'success');
-  }).catch(err => {
-    showToast('❌ Error downloading ticket', 'error');
-  });
+  await generateTicketPDF(currentTicket);
 }
 
 function renderHistory(){
