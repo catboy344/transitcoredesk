@@ -70,17 +70,17 @@
   .empty-state{color:var(--sage);text-align:center;padding:60px 20px;font-size:13px;line-height:1.6;}
   .empty-state .big{font-family:'Fraunces',serif;font-size:18px;color:var(--brass-light);display:block;margin-bottom:8px;}
 
-  .ticket{width:100%;max-width:420px;background:var(--ivory);color:var(--ink);border-radius:16px;overflow:hidden;box-shadow:0 20px 50px rgba(0,0,0,0.4);position:relative;}
+  .ticket{width:100%;max-width:440px;background:var(--ivory);color:var(--ink);border-radius:16px;overflow:hidden;box-shadow:0 20px 50px rgba(0,0,0,0.4);position:relative;}
   .ticket-top{padding:22px 24px 18px;position:relative;background:linear-gradient(135deg, var(--emerald-deep), var(--emerald-mid));color:var(--ivory);}
   .ticket-top .tt-brand{font-family:'Fraunces',serif;font-weight:700;font-size:17px;color:var(--brass-light);}
   .ticket-top .tt-sub{font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--sage);margin-top:2px;}
-  .ticket-route{padding:20px 24px 10px;background:var(--ivory);}
-  .route-line{display:flex;align-items:center;justify-content:space-between;}
-  .route-city{font-family:'Fraunces',serif;font-size:24px;font-weight:600;line-height:1.2;}
+  .ticket-route{padding:20px 24px 12px;background:var(--ivory);border-bottom:1px solid #e8e0cc;}
+  .route-line{display:flex;align-items:center;justify-content:space-between;gap:8px;}
+  .route-city{font-family:'Fraunces',serif;font-size:24px;font-weight:600;line-height:1.1;text-align:center;flex:1;}
   .route-city .sub{display:block;font-family:'Inter',sans-serif;font-size:10px;color:#5c6b60;text-transform:uppercase;letter-spacing:1px;margin-top:3px;font-weight:500;}
-  .route-arrow{font-family:'IBM Plex Mono',monospace;color:var(--brass);font-size:18px;padding:0 10px;}
+  .route-arrow{font-family:'IBM Plex Mono',monospace;color:var(--brass);font-size:20px;flex-shrink:0;}
 
-  .perforation{position:relative;height:0;border-top:2px dashed #C9C2A6;margin:18px 0 0;}
+  .perforation{position:relative;height:0;border-top:2px dashed #C9C2A6;margin:16px 0 0;}
   .perforation::before,.perforation::after{content:'';position:absolute;top:-11px;width:22px;height:22px;border-radius:50%;background:var(--emerald-black);}
   .perforation::before{left:-11px;}
   .perforation::after{right:-11px;}
@@ -93,7 +93,7 @@
   .code-text .label{display:block;font-family:'Inter',sans-serif;font-size:9px;letter-spacing:1px;text-transform:uppercase;color:#8a9188;font-weight:500;margin-bottom:3px;}
   .qr-box img{display:block;width:64px;height:64px;border-radius:6px;border:1px solid #d9d2ba;}
 
-  .ticket-actions{display:flex;gap:10px;margin-top:12px;width:100%;max-width:420px;flex-wrap:wrap;}
+  .ticket-actions{display:flex;gap:10px;margin-top:12px;width:100%;max-width:440px;flex-wrap:wrap;}
   .action-btn{flex:1;min-width:100px;padding:11px;border-radius:9px;border:1px solid var(--line);background:var(--emerald-mid);color:var(--ivory);font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;}
   .action-btn.whatsapp{background:#25D366;color:#0a1b15;border-color:#25D366;}
   .action-btn.email{background:#EA4335;color:#fff;border-color:#EA4335;}
@@ -102,7 +102,7 @@
   .action-btn:disabled{opacity:0.6;cursor:not-allowed;filter:none;}
 
   /* history */
-  .history{margin-top:20px;width:100%;max-width:420px;}
+  .history{margin-top:20px;width:100%;max-width:440px;}
   .history-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
   .history-head h3{font-family:'Fraunces',serif;font-size:14px;color:var(--brass-light);margin:0;}
   .history-search{padding:6px 10px;border-radius:6px;border:1px solid var(--line);background:var(--emerald-mid);color:var(--ivory);font-size:12px;font-family:'IBM Plex Mono',monospace;width:140px;}
@@ -178,6 +178,7 @@
         <option value="Benin"></option>
         <option value="Ogun State"></option>
         <option value="Ibadan"></option>
+        <option value="Enugu"></option>
       </datalist>
       <div class="field-row">
         <div class="field">
@@ -367,7 +368,7 @@ function showToast(message, type = 'success'){
 function generateTicketPNG(t) {
     return new Promise((resolve) => {
         const canvas = document.createElement('canvas');
-        const W = 600, H = 920;
+        const W = 640, H = 940;
         canvas.width = W;
         canvas.height = H;
         const ctx = canvas.getContext('2d');
@@ -377,46 +378,58 @@ function generateTicketPNG(t) {
         ctx.fillRect(0, 0, W, H);
         
         // Top band
-        const grad = ctx.createLinearGradient(0, 0, W, 180);
+        const grad = ctx.createLinearGradient(0, 0, W, 160);
         grad.addColorStop(0, '#0B3D2E');
         grad.addColorStop(1, '#123D2F');
         ctx.fillStyle = grad;
-        ctx.fillRect(0, 0, W, 130);
+        ctx.fillRect(0, 0, W, 120);
         
         ctx.fillStyle = '#E7CB84';
         ctx.font = "700 28px Georgia, serif";
         ctx.fillText('TransitCore', 30, 60);
         
         ctx.fillStyle = '#8AA894';
-        ctx.font = "10px Arial";
-        ctx.fillText(('STUDENT TRANSIT, SORTED · ' + t.operator).toUpperCase(), 30, 85);
+        ctx.font = "11px Arial";
+        ctx.fillText(('STUDENT TRANSIT, SORTED · ' + t.operator).toUpperCase(), 30, 88);
         
-        // ROUTE - Big and clear
+        // ROUTE - properly spaced and centered
         ctx.fillStyle = '#132018';
-        ctx.font = "600 34px Georgia, serif";
-        const originW = ctx.measureText(t.origin).width;
-        ctx.fillText(t.origin, 30, 170);
+        ctx.font = "600 32px Georgia, serif";
         
+        // Measure origin text
+        const originW = ctx.measureText(t.origin).width;
+        const destW = ctx.measureText(t.destination).width;
+        const arrowW = 40;
+        const totalW = originW + destW + arrowW + 20;
+        const startX = (W - totalW) / 2;
+        
+        // Draw origin
+        ctx.textAlign = 'left';
+        ctx.fillText(t.origin, startX, 185);
+        
+        // Draw arrow
         ctx.fillStyle = '#C9A34E';
         ctx.font = "24px Arial";
-        ctx.fillText('→', 30 + originW + 12, 164);
+        ctx.fillText('→', startX + originW + 8, 179);
         
+        // Draw destination
         ctx.fillStyle = '#132018';
-        ctx.font = "600 34px Georgia, serif";
-        ctx.fillText(t.destination, 30 + originW + 50, 170);
+        ctx.font = "600 32px Georgia, serif";
+        ctx.fillText(t.destination, startX + originW + arrowW + 8, 185);
         
         // Sub labels
         ctx.fillStyle = '#5c6b60';
-        ctx.font = "9px Arial";
-        ctx.fillText('ORIGIN', 30, 190);
-        ctx.fillText('DESTINATION', 30 + originW + 50 + ctx.measureText(t.destination).width - 60, 190);
+        ctx.font = "10px Arial";
+        ctx.textAlign = 'left';
+        ctx.fillText('ORIGIN', startX, 205);
+        ctx.fillText('DESTINATION', startX + originW + arrowW + 8 + destW - 70, 205);
         
         // Dashed line
         ctx.strokeStyle = '#C9C2A6';
         ctx.setLineDash([6, 4]);
         ctx.beginPath();
-        ctx.moveTo(25, 215);
-        ctx.lineTo(W - 25, 215);
+        ctx.moveTo(30, 230);
+        ctx.lineTo(W - 30, 230);
         ctx.stroke();
         ctx.setLineDash([]);
         
@@ -428,27 +441,28 @@ function generateTicketPNG(t) {
             ['EMAIL', t.custEmail, '', '']
         ];
         
-        let y = 255;
+        let y = 270;
         rows.forEach(r => {
             ctx.fillStyle = '#8a9188';
             ctx.font = "9px Arial";
+            ctx.textAlign = 'left';
             ctx.fillText(r[0], 30, y);
-            if (r[2]) ctx.fillText(r[2], 310, y);
+            if (r[2]) ctx.fillText(r[2], 320, y);
             
             ctx.fillStyle = '#132018';
             ctx.font = "600 16px 'Courier New', monospace";
             ctx.fillText(r[1], 30, y + 22);
-            if (r[3]) ctx.fillText(r[3], 310, y + 22);
+            if (r[3]) ctx.fillText(r[3], 320, y + 22);
             
-            y += 55;
+            y += 58;
         });
         
         // Dashed line
         ctx.strokeStyle = '#C9C2A6';
         ctx.setLineDash([6, 4]);
         ctx.beginPath();
-        ctx.moveTo(25, y + 10);
-        ctx.lineTo(W - 25, y + 10);
+        ctx.moveTo(30, y + 6);
+        ctx.lineTo(W - 30, y + 6);
         ctx.stroke();
         ctx.setLineDash([]);
         
@@ -490,10 +504,10 @@ function generateTicketPNG(t) {
         const qrImg = new Image();
         qrImg.crossOrigin = 'anonymous';
         const qrData = encodeURIComponent(`TransitCore|${t.code}|${t.origin}-${t.destination}|${t.travelDate} ${t.travelTime}|${t.custName}|${t.custRegNo}`);
-        qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=120x120&margin=0&data=${qrData}`;
+        qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=130x130&margin=0&data=${qrData}`;
         
         qrImg.onload = function() {
-            ctx.drawImage(qrImg, W - 150, 155, 120, 120);
+            ctx.drawImage(qrImg, W - 160, 120, 130, 130);
             resolve(canvas.toDataURL('image/png'));
         };
         
@@ -587,8 +601,8 @@ function renderTicket(t){
       <div class="ticket-route">
         <div class="route-line">
           <div class="route-city">${t.origin}<span class="sub">Origin</span></div>
-          <div class="route-arrow">✈→</div>
-          <div class="route-city" style="text-align:right;">${t.destination}<span class="sub">Destination</span></div>
+          <div class="route-arrow">✈ →</div>
+          <div class="route-city">${t.destination}<span class="sub">Destination</span></div>
         </div>
       </div>
       <div class="perforation"></div>
