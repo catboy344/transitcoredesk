@@ -40,7 +40,7 @@
   .sync-status{font-size:10px;padding:3px 10px;border-radius:12px;background:var(--emerald-mid);color:var(--sage);border:1px solid var(--line);margin-left:10px;}
   .sync-status.synced{color:#4CAF50;border-color:#4CAF50;}
   .sync-status.error{color:var(--rust);border-color:var(--rust);}
-  .refresh-btn{background:var(--brass);color:var(--emerald-black);border:none;border-radius:6px;padding:4px 12px;cursor:pointer;font-weight:600;font-size:12px;}
+  .sync-status.connecting{color:#FFA500;border-color:#FFA500;}
 
   /* gate */
   .gate{flex:1;display:flex;align-items:center;justify-content:center;padding:24px;}
@@ -144,7 +144,7 @@
     <div class="brand">
       <span class="wordmark">TransitCore</span>
       <span class="tagline">Ticket Desk</span>
-      <span class="sync-status" id="syncStatus">● Connecting...</span>
+      <span class="sync-status connecting" id="syncStatus">● Connecting...</span>
     </div>
     <div class="desk-label" id="deskClock">—</div>
   </div>
@@ -249,7 +249,7 @@
         <div class="history-head">
           <h3>Recent tickets</h3>
           <div style="display:flex;gap:8px;align-items:center;">
-            <button class="refresh-btn" onclick="refreshHistory()">⟳ Refresh</button>
+            <button class="refresh-btn" onclick="refreshHistory()" style="background:var(--brass);color:var(--emerald-black);border:none;border-radius:6px;padding:4px 12px;cursor:pointer;font-weight:600;font-size:12px;">⟳ Refresh</button>
             <input class="history-search" id="historySearch" placeholder="Search name/code" oninput="renderHistory()">
           </div>
         </div>
@@ -271,8 +271,15 @@ const SUPABASE_CONFIG = {
     ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZyY3ZlcWhreG12bW5xZWF2enJjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM3MjkxNzIsImV4cCI6MjA5OTMwNTE3Mn0.aHWBES5ib8FWKgt6JFuq2RWZj0PpFq5W7tyeydIonoI'
 };
 
-// Initialize Supabase client
-const supabase = window.supabase.createClient(SUPABASE_CONFIG.URL, SUPABASE_CONFIG.ANON_KEY);
+// Initialize Supabase client with better error handling
+let supabase;
+try {
+    supabase = window.supabase.createClient(SUPABASE_CONFIG.URL, SUPABASE_CONFIG.ANON_KEY);
+    console.log('✅ Supabase client initialized');
+} catch (error) {
+    console.error('❌ Failed to initialize Supabase:', error);
+    supabase = null;
+}
 
 // ============================================
 // ===== EMAILJS CONFIGURATION =====
@@ -299,50 +306,80 @@ const EMAILJS_CONFIG = {
 const PASSCODE = "John+2558";
 let bookings = [];
 let currentTicket = null;
+let isSupabaseConnected = false;
 
 // ============================================
 // ===== SUPABASE FUNCTIONS =====
 // ============================================
 
-// Check Supabase connection
+// Check Supabase connection with timeout
 async function checkSupabaseConnection() {
+    if (!supabase) {
+        document.getElementById('syncStatus').textContent = '● Supabase not available';
+        document.getElementById('syncStatus').className = 'sync-status error';
+        return false;
+    }
+    
     try {
-        const { data, error } = await supabase
+        // Set a timeout for the connection check
+        const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Connection timeout')), 5000)
+        );
+        
+        const queryPromise = supabase
             .from('bookings')
             .select('id')
             .limit(1);
         
-        if (error) throw error;
+        const result = await Promise.race([queryPromise, timeoutPromise]);
+        
+        if (result && result.error) throw result.error;
+        
+        isSupabaseConnected = true;
         document.getElementById('syncStatus').textContent = '● Connected';
         document.getElementById('syncStatus').className = 'sync-status synced';
+        console.log('✅ Supabase connected successfully');
         return true;
     } catch (error) {
-        console.error('Supabase connection error:', error);
-        document.getElementById('syncStatus').textContent = '● Offline';
+        console.warn('⚠️ Supabase connection failed:', error.message);
+        isSupabaseConnected = false;
+        document.getElementById('syncStatus').textContent = '● Offline (local)';
         document.getElementById('syncStatus').className = 'sync-status error';
-        showToast('⚠️ Could not connect to database. Using local storage only.', 'error');
         return false;
     }
 }
 
 // Load tickets from Supabase
 async function loadTicketsFromSupabase() {
+    if (!isSupabaseConnected || !supabase) {
+        return null;
+    }
+    
     try {
         const { data, error } = await supabase
             .from('bookings')
             .select('*')
-            .order('issued_at', { ascending: false });
+            .order('issued_at', { ascending: false })
+            .limit(100);
         
         if (error) throw error;
         return data || [];
     } catch (error) {
         console.error('Error loading tickets from Supabase:', error);
+        isSupabaseConnected = false;
+        document.getElementById('syncStatus').textContent = '● Offline (local)';
+        document.getElementById('syncStatus').className = 'sync-status error';
         return null;
     }
 }
 
 // Save ticket to Supabase
 async function saveTicketToSupabase(ticket) {
+    if (!isSupabaseConnected || !supabase) {
+        console.log('📝 Supabase offline, saving to local storage only');
+        return null;
+    }
+    
     try {
         const { data, error } = await supabase
             .from('bookings')
@@ -364,9 +401,14 @@ async function saveTicketToSupabase(ticket) {
         
         if (error) throw error;
         console.log('✅ Ticket saved to Supabase:', ticket.code);
+        document.getElementById('syncStatus').textContent = '● Synced';
+        document.getElementById('syncStatus').className = 'sync-status synced';
         return data;
     } catch (error) {
         console.error('❌ Failed to save ticket to Supabase:', error);
+        isSupabaseConnected = false;
+        document.getElementById('syncStatus').textContent = '● Offline (local)';
+        document.getElementById('syncStatus').className = 'sync-status error';
         return null;
     }
 }
@@ -377,8 +419,11 @@ async function saveTicketToSupabase(ticket) {
 
 // Load bookings from Supabase with local storage fallback
 async function loadBookings() {
-    // Try Supabase first
-    const supabaseData = await loadTicketsFromSupabase();
+    // Try Supabase first if connected
+    let supabaseData = null;
+    if (isSupabaseConnected) {
+        supabaseData = await loadTicketsFromSupabase();
+    }
     
     if (supabaseData && supabaseData.length > 0) {
         // Convert Supabase format to our local format
@@ -407,8 +452,10 @@ async function loadBookings() {
     try {
         const res = await window.storage.get('bookings-all', true);
         bookings = res && res.value ? JSON.parse(res.value) : [];
+        console.log(`📦 Loaded ${bookings.length} tickets from local storage`);
     } catch(e) {
         bookings = [];
+        console.log('📦 No local storage data found');
     }
 }
 
@@ -423,22 +470,15 @@ async function saveToLocalStorage() {
 
 // Save booking with Supabase sync
 async function saveBooking(ticket) {
-    // Save to Supabase
+    // Save to Supabase if connected
     const supabaseResult = await saveTicketToSupabase(ticket);
     
     if (supabaseResult && supabaseResult.length > 0) {
-        // If Supabase save was successful, update the booking with Supabase data
         const savedTicket = supabaseResult[0];
         ticket.id = savedTicket.id;
-        // Update sync status
-        document.getElementById('syncStatus').textContent = '● Synced';
-        document.getElementById('syncStatus').className = 'sync-status synced';
-    } else {
-        document.getElementById('syncStatus').textContent = '● Local only';
-        document.getElementById('syncStatus').className = 'sync-status error';
     }
     
-    // Also save to local bookings array (avoid duplicates)
+    // Always save to local bookings array (avoid duplicates)
     const existingIndex = bookings.findIndex(b => b.code === ticket.code);
     if (existingIndex === -1) {
         bookings.push(ticket);
@@ -452,9 +492,10 @@ async function saveBooking(ticket) {
 // Refresh history from Supabase
 async function refreshHistory() {
     showToast('🔄 Refreshing tickets from database...', 'success');
+    await checkSupabaseConnection();
     await loadBookings();
     renderHistory();
-    showToast('✅ Tickets refreshed from database', 'success');
+    showToast(`✅ ${bookings.length} tickets loaded`, 'success');
 }
 
 // ============================================
@@ -493,14 +534,18 @@ async function init(){
   updateClock();
   document.getElementById('travelDate').valueAsDate = new Date();
   
-  // Check Supabase connection
+  // Check Supabase connection (non-blocking)
   await checkSupabaseConnection();
   
-  // Load bookings from Supabase
+  // Load bookings (from Supabase if available, otherwise local)
   await loadBookings();
   renderHistory();
   
-  showToast('📡 Connected to database', 'success');
+  if (isSupabaseConnected) {
+    showToast('📡 Connected to database', 'success');
+  } else {
+    showToast('📡 Working offline - using local storage', 'success');
+  }
 }
 
 // ============================================
@@ -750,7 +795,7 @@ async function generateTicket(){
     issuedAt: new Date().toISOString()
   };
   
-  // Save to Supabase
+  // Save to Supabase (if available) and local storage
   await saveBooking(ticket);
   
   currentTicket = ticket;
