@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+ <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -9,9 +9,6 @@
 
 <!-- EmailJS Library -->
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
-
-<!-- Supabase Library -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <style>
   :root{
@@ -37,11 +34,6 @@
   .brand .wordmark{font-family:'Fraunces',serif;font-weight:700;font-size:22px;letter-spacing:0.3px;color:var(--ivory);}
   .brand .tagline{font-size:11px;color:var(--sage);text-transform:uppercase;letter-spacing:1.5px;}
   .desk-label{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--brass-light);border:1px solid var(--line);padding:5px 10px;border-radius:20px;}
-  .sync-status{font-size:10px;padding:3px 10px;border-radius:12px;background:var(--emerald-mid);color:var(--sage);border:1px solid var(--line);margin-left:10px;}
-  .sync-status.synced{color:#4CAF50;border-color:#4CAF50;}
-  .sync-status.error{color:var(--rust);border-color:var(--rust);}
-  .sync-status.connecting{color:#FFA500;border-color:#FFA500;}
-  .refresh-btn{background:var(--brass);color:var(--emerald-black);border:none;border-radius:6px;padding:4px 12px;cursor:pointer;font-weight:600;font-size:12px;}
 
   /* gate */
   .gate{flex:1;display:flex;align-items:center;justify-content:center;padding:24px;}
@@ -49,8 +41,7 @@
   .gate-card h2{font-family:'Fraunces',serif;font-size:20px;margin:0 0 6px;color:var(--brass-light);}
   .gate-card p{font-size:13px;color:var(--sage);margin:0 0 18px;}
   .gate-card input{width:100%;padding:12px 14px;border-radius:8px;border:1px solid var(--line);background:var(--emerald-black);color:var(--ivory);font-family:'IBM Plex Mono',monospace;font-size:15px;text-align:center;letter-spacing:3px;}
-  .gate-card button{margin-top:14px;width:100%;padding:12px;border-radius:8px;border:none;background:var(--brass);color:var(--emerald-black);font-weight:700;font-size:14px;cursor:pointer;transition:all 0.3s;}
-  .gate-card button:hover{transform:scale(1.02);}
+  .gate-card button{margin-top:14px;width:100%;padding:12px;border-radius:8px;border:none;background:var(--brass);color:var(--emerald-black);font-weight:700;font-size:14px;cursor:pointer;}
   .gate-error{color:var(--rust);font-size:12px;margin-top:10px;min-height:14px;}
 
   /* main layout */
@@ -69,8 +60,7 @@
   .field input::placeholder{color:#6f8478;}
   .field input:focus, .field select:focus{outline:none;border-color:var(--brass);}
 
-  .generate-btn{width:100%;padding:14px;margin-top:20px;border:none;border-radius:10px;background:var(--brass);color:var(--emerald-black);font-weight:700;font-size:15px;cursor:pointer;font-family:'Inter',sans-serif;transition:all 0.3s;}
-  .generate-btn:hover{transform:scale(1.02);}
+  .generate-btn{width:100%;padding:14px;margin-top:20px;border:none;border-radius:10px;background:var(--brass);color:var(--emerald-black);font-weight:700;font-size:15px;cursor:pointer;font-family:'Inter',sans-serif;}
   .generate-btn:disabled{background:#4a564d;color:#8aa894;cursor:not-allowed;}
   .form-error{color:var(--rust);font-size:12px;margin-top:8px;min-height:14px;}
 
@@ -104,11 +94,11 @@
   .qr-box img{display:block;width:64px;height:64px;border-radius:6px;border:1px solid #d9d2ba;}
 
   .ticket-actions{display:flex;gap:10px;margin-top:12px;width:100%;max-width:440px;flex-wrap:wrap;}
-  .action-btn{flex:1;min-width:100px;padding:11px;border-radius:9px;border:1px solid var(--line);background:var(--emerald-mid);color:var(--ivory);font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;transition:all 0.3s;}
-  .action-btn:hover{transform:scale(1.05);}
+  .action-btn{flex:1;min-width:100px;padding:11px;border-radius:9px;border:1px solid var(--line);background:var(--emerald-mid);color:var(--ivory);font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;}
   .action-btn.whatsapp{background:#25D366;color:#0a1b15;border-color:#25D366;}
   .action-btn.email{background:#EA4335;color:#fff;border-color:#EA4335;}
   .action-btn.download{background:var(--brass);color:var(--emerald-black);border-color:var(--brass);}
+  .action-btn:hover{filter:brightness(1.08);}
   .action-btn:disabled{opacity:0.6;cursor:not-allowed;filter:none;}
 
   /* history */
@@ -117,8 +107,8 @@
   .history-head h3{font-family:'Fraunces',serif;font-size:14px;color:var(--brass-light);margin:0;}
   .history-search{padding:6px 10px;border-radius:6px;border:1px solid var(--line);background:var(--emerald-mid);color:var(--ivory);font-size:12px;font-family:'IBM Plex Mono',monospace;width:140px;}
   .history-list{max-height:200px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;}
-  .history-row{display:flex;justify-content:space-between;align-items:center;padding:9px 12px;border:1px solid var(--line);border-radius:8px;font-size:12px;background:var(--emerald-mid);cursor:pointer;transition:all 0.3s;}
-  .history-row:hover{border-color:var(--brass);background:#1d4635;transform:scale(1.02);}
+  .history-row{display:flex;justify-content:space-between;align-items:center;padding:9px 12px;border:1px solid var(--line);border-radius:8px;font-size:12px;background:var(--emerald-mid);cursor:pointer;}
+  .history-row:hover{border-color:var(--brass);background:#1d4635;}
   .history-row .hr-code{font-family:'IBM Plex Mono',monospace;color:var(--brass-light);}
   .history-row .hr-name{color:var(--ivory);}
   .history-row .hr-route{color:var(--sage);font-size:11px;}
@@ -147,14 +137,13 @@
     <div class="brand">
       <span class="wordmark">TransitCore</span>
       <span class="tagline">Ticket Desk</span>
-      <span class="sync-status connecting" id="syncStatus">● Connecting...</span>
     </div>
     <div class="desk-label" id="deskClock">—</div>
   </div>
 
   <div id="gateScreen" class="gate">
     <div class="gate-card">
-      <h2>🔐 Desk Access</h2>
+      <h2>Desk Access</h2>
       <p>Enter the desk passcode to start issuing tickets.</p>
       <input type="password" id="gateInput" placeholder="• • • • • • • •" maxlength="20">
       <button onclick="tryUnlock()">Unlock desk</button>
@@ -190,8 +179,6 @@
         <option value="Ogun State"></option>
         <option value="Ibadan"></option>
         <option value="Enugu"></option>
-        <option value="Abuja"></option>
-        <option value="Kano"></option>
       </datalist>
       <div class="field-row">
         <div class="field">
@@ -234,7 +221,7 @@
         <input id="custRegNo" placeholder="e.g. LU/23/1234" required>
       </div>
 
-      <button class="generate-btn" id="genBtn" onclick="generateTicket()">✨ Generate ticket</button>
+      <button class="generate-btn" id="genBtn" onclick="generateTicket()">Generate ticket</button>
       <div class="form-error" id="formError"></div>
     </div>
 
@@ -243,7 +230,7 @@
       <div class="section-title"><span class="num">3</span> Ticket</div>
       <div class="ticket-wrap" id="ticketWrap">
         <div class="empty-state">
-          <span class="big">🎫 No ticket yet</span>
+          <span class="big">No ticket yet</span>
           Fill in trip and passenger details,<br>then generate — the ticket appears here.
         </div>
       </div>
@@ -251,10 +238,7 @@
       <div class="history">
         <div class="history-head">
           <h3>Recent tickets</h3>
-          <div style="display:flex;gap:8px;align-items:center;">
-            <button class="refresh-btn" onclick="refreshHistory()">⟳ Refresh</button>
-            <input class="history-search" id="historySearch" placeholder="Search name/code" oninput="renderHistory()">
-          </div>
+          <input class="history-search" id="historySearch" placeholder="Search name/code" oninput="renderHistory()">
         </div>
         <div class="history-list" id="historyList"></div>
       </div>
@@ -266,27 +250,7 @@
 <div class="toast" id="toast"></div>
 
 <script>
-// ============================================
-// ===== SUPABASE CONFIGURATION =====
-// ============================================
-const SUPABASE_CONFIG = {
-    URL: 'https://vrcveqhkxmvmnqeavzrc.supabase.co',
-    ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZyY3ZlcWhreG12bW5xZWF2enJjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM3MjkxNzIsImV4cCI6MjA5OTMwNTE3Mn0.aHWBES5ib8FWKgt6JFuq2RWZj0PpFq5W7tyeydIonoI'
-};
-
-// Initialize Supabase client
-let supabase;
-try {
-    supabase = window.supabase.createClient(SUPABASE_CONFIG.URL, SUPABASE_CONFIG.ANON_KEY);
-    console.log('✅ Supabase client initialized');
-} catch (error) {
-    console.error('❌ Failed to initialize Supabase:', error);
-    supabase = null;
-}
-
-// ============================================
 // ===== EMAILJS CONFIGURATION =====
-// ============================================
 const EMAILJS_CONFIG = {
     PUBLIC_KEY: 'tq9cIXbI9_-zFCYaH',
     SERVICE_ID: 'service_twtzeca',
@@ -303,225 +267,14 @@ const EMAILJS_CONFIG = {
     }
 })();
 
-// ============================================
-// ===== APP STATE =====
-// ============================================
+// ===== END EMAILJS CONFIG =====
+
 const PASSCODE = "John+2558";
+
 let bookings = [];
 let currentTicket = null;
-let isSupabaseConnected = false;
 
-// ============================================
-// ===== LOCAL STORAGE HELPERS =====
-// ============================================
-function saveToLocalStorage() {
-    try {
-        localStorage.setItem('transitcore_bookings', JSON.stringify(bookings));
-        return true;
-    } catch (e) {
-        console.error('Could not save to local storage:', e);
-        return false;
-    }
-}
-
-function loadFromLocalStorage() {
-    try {
-        const data = localStorage.getItem('transitcore_bookings');
-        if (data) {
-            return JSON.parse(data);
-        }
-        return null;
-    } catch (e) {
-        console.error('Could not load from local storage:', e);
-        return null;
-    }
-}
-
-// ============================================
-// ===== SUPABASE FUNCTIONS =====
-// ============================================
-
-// Check Supabase connection with timeout
-async function checkSupabaseConnection() {
-    if (!supabase) {
-        document.getElementById('syncStatus').textContent = '● Supabase unavailable';
-        document.getElementById('syncStatus').className = 'sync-status error';
-        return false;
-    }
-    
-    try {
-        // Set a timeout for the connection check
-        const timeoutPromise = new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('Connection timeout')), 5000)
-        );
-        
-        const queryPromise = supabase
-            .from('bookings')
-            .select('id')
-            .limit(1);
-        
-        const result = await Promise.race([queryPromise, timeoutPromise]);
-        
-        if (result && result.error) throw result.error;
-        
-        isSupabaseConnected = true;
-        document.getElementById('syncStatus').textContent = '● Connected';
-        document.getElementById('syncStatus').className = 'sync-status synced';
-        console.log('✅ Supabase connected successfully');
-        return true;
-    } catch (error) {
-        console.warn('⚠️ Supabase connection failed:', error.message);
-        isSupabaseConnected = false;
-        document.getElementById('syncStatus').textContent = '● Offline (local)';
-        document.getElementById('syncStatus').className = 'sync-status error';
-        return false;
-    }
-}
-
-// Load tickets from Supabase
-async function loadTicketsFromSupabase() {
-    if (!isSupabaseConnected || !supabase) {
-        return null;
-    }
-    
-    try {
-        const { data, error } = await supabase
-            .from('bookings')
-            .select('*')
-            .order('issued_at', { ascending: false })
-            .limit(100);
-        
-        if (error) throw error;
-        return data || [];
-    } catch (error) {
-        console.error('Error loading tickets from Supabase:', error);
-        isSupabaseConnected = false;
-        document.getElementById('syncStatus').textContent = '● Offline (local)';
-        document.getElementById('syncStatus').className = 'sync-status error';
-        return null;
-    }
-}
-
-// Save ticket to Supabase
-async function saveTicketToSupabase(ticket) {
-    if (!isSupabaseConnected || !supabase) {
-        console.log('📝 Supabase offline, saving to local storage only');
-        return null;
-    }
-    
-    try {
-        const { data, error } = await supabase
-            .from('bookings')
-            .insert([{
-                code: ticket.code,
-                origin: ticket.origin,
-                destination: ticket.destination,
-                travel_date: ticket.travelDate,
-                travel_time: ticket.travelTime,
-                operator: ticket.operator,
-                fare: ticket.fare,
-                cust_name: ticket.custName,
-                cust_phone: ticket.custPhone,
-                cust_email: ticket.custEmail,
-                cust_reg_no: ticket.custRegNo,
-                issued_at: ticket.issuedAt || new Date().toISOString()
-            }])
-            .select();
-        
-        if (error) throw error;
-        console.log('✅ Ticket saved to Supabase:', ticket.code);
-        document.getElementById('syncStatus').textContent = '● Synced';
-        document.getElementById('syncStatus').className = 'sync-status synced';
-        return data;
-    } catch (error) {
-        console.error('❌ Failed to save ticket to Supabase:', error);
-        isSupabaseConnected = false;
-        document.getElementById('syncStatus').textContent = '● Offline (local)';
-        document.getElementById('syncStatus').className = 'sync-status error';
-        return null;
-    }
-}
-
-// ============================================
-// ===== TICKET MANAGEMENT =====
-// ============================================
-
-// Load bookings from Supabase with local storage fallback
-async function loadBookings() {
-    // Try Supabase first if connected
-    let supabaseData = null;
-    if (isSupabaseConnected) {
-        supabaseData = await loadTicketsFromSupabase();
-    }
-    
-    if (supabaseData && supabaseData.length > 0) {
-        // Convert Supabase format to our local format
-        bookings = supabaseData.map(t => ({
-            code: t.code,
-            origin: t.origin,
-            destination: t.destination,
-            travelDate: t.travel_date,
-            travelTime: t.travel_time,
-            operator: t.operator,
-            fare: t.fare,
-            custName: t.cust_name,
-            custPhone: t.cust_phone,
-            custEmail: t.cust_email,
-            custRegNo: t.cust_reg_no,
-            issuedAt: t.issued_at || t.created_at,
-            id: t.id
-        }));
-        
-        // Save to local storage as backup
-        saveToLocalStorage();
-        console.log(`📦 Loaded ${bookings.length} tickets from Supabase`);
-        return;
-    }
-    
-    // Fallback to local storage
-    const localData = loadFromLocalStorage();
-    if (localData && localData.length > 0) {
-        bookings = localData;
-        console.log(`📦 Loaded ${bookings.length} tickets from local storage`);
-    } else {
-        bookings = [];
-        console.log('📦 No local storage data found');
-    }
-}
-
-// Save booking with Supabase sync
-async function saveBooking(ticket) {
-    // Save to Supabase if connected
-    const supabaseResult = await saveTicketToSupabase(ticket);
-    
-    if (supabaseResult && supabaseResult.length > 0) {
-        const savedTicket = supabaseResult[0];
-        ticket.id = savedTicket.id;
-    }
-    
-    // Always save to local bookings array (avoid duplicates)
-    const existingIndex = bookings.findIndex(b => b.code === ticket.code);
-    if (existingIndex === -1) {
-        bookings.push(ticket);
-    } else {
-        bookings[existingIndex] = ticket;
-    }
-    saveToLocalStorage();
-    renderHistory();
-}
-
-// Refresh history from Supabase
-async function refreshHistory() {
-    showToast('🔄 Refreshing tickets from database...', 'success');
-    await checkSupabaseConnection();
-    await loadBookings();
-    renderHistory();
-    showToast(`✅ ${bookings.length} tickets loaded`, 'success');
-}
-
-// ============================================
 // ===== CLOCK FUNCTION =====
-// ============================================
 function updateClock(){
   const now = new Date();
   const dateStr = now.toLocaleDateString('en-GB', {
@@ -554,24 +307,28 @@ document.getElementById('gateInput').addEventListener('keydown', e=>{ if(e.key==
 async function init(){
   updateClock();
   document.getElementById('travelDate').valueAsDate = new Date();
-  
-  // Check Supabase connection (non-blocking)
-  await checkSupabaseConnection();
-  
-  // Load bookings (from Supabase if available, otherwise local)
   await loadBookings();
   renderHistory();
-  
-  if (isSupabaseConnected) {
-    showToast('📡 Connected to database', 'success');
-  } else {
-    showToast('📡 Working offline - using local storage', 'success');
+}
+
+async function loadBookings(){
+  try{
+    const res = await window.storage.get('bookings-all', true);
+    bookings = res && res.value ? JSON.parse(res.value) : [];
+  }catch(e){
+    bookings = [];
   }
 }
 
-// ============================================
-// ===== GENERATE TICKET CODE =====
-// ============================================
+async function saveBookings(){
+  try{
+    await window.storage.set('bookings-all', JSON.stringify(bookings), true);
+  }catch(e){
+    console.error('Could not save booking', e);
+  }
+}
+
+// ===== Generate ticket code using Reg No =====
 function genCode(regNo){
   const cleanReg = regNo.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
   
@@ -607,9 +364,7 @@ function showToast(message, type = 'success'){
   }, 4000);
 }
 
-// ============================================
-// ===== GENERATE TICKET PNG =====
-// ============================================
+// ===== GENERATE TICKET PNG AS DATA URL =====
 function generateTicketPNG(t) {
     return new Promise((resolve) => {
         const canvas = document.createElement('canvas');
@@ -641,29 +396,35 @@ function generateTicketPNG(t) {
         ctx.fillStyle = '#132018';
         ctx.font = "600 32px Georgia, serif";
         
+        // Measure origin text
         const originW = ctx.measureText(t.origin).width;
         const destW = ctx.measureText(t.destination).width;
         const arrowW = 40;
         const totalW = originW + destW + arrowW + 20;
         const startX = (W - totalW) / 2;
         
+        // Draw origin
         ctx.textAlign = 'left';
         ctx.fillText(t.origin, startX, 185);
         
+        // Draw arrow
         ctx.fillStyle = '#C9A34E';
         ctx.font = "24px Arial";
         ctx.fillText('→', startX + originW + 8, 179);
         
+        // Draw destination
         ctx.fillStyle = '#132018';
         ctx.font = "600 32px Georgia, serif";
         ctx.fillText(t.destination, startX + originW + arrowW + 8, 185);
         
+        // Sub labels
         ctx.fillStyle = '#5c6b60';
         ctx.font = "10px Arial";
         ctx.textAlign = 'left';
         ctx.fillText('ORIGIN', startX, 205);
         ctx.fillText('DESTINATION', startX + originW + arrowW + 8 + destW - 70, 205);
         
+        // Dashed line
         ctx.strokeStyle = '#C9C2A6';
         ctx.setLineDash([6, 4]);
         ctx.beginPath();
@@ -672,6 +433,7 @@ function generateTicketPNG(t) {
         ctx.stroke();
         ctx.setLineDash([]);
         
+        // Grid details
         const rows = [
             ['PASSENGER', t.custName, 'REG NO', t.custRegNo],
             ['DATE', formatDate(t.travelDate), 'DEPARTURE', t.travelTime],
@@ -695,6 +457,7 @@ function generateTicketPNG(t) {
             y += 58;
         });
         
+        // Dashed line
         ctx.strokeStyle = '#C9C2A6';
         ctx.setLineDash([6, 4]);
         ctx.beginPath();
@@ -705,6 +468,7 @@ function generateTicketPNG(t) {
         
         y += 40;
         
+        // Ticket code
         ctx.fillStyle = '#8a9188';
         ctx.font = "9px Arial";
         ctx.fillText('TICKET CODE', 30, y);
@@ -712,6 +476,7 @@ function generateTicketPNG(t) {
         ctx.font = "700 20px 'Courier New', monospace";
         ctx.fillText(t.code, 30, y + 28);
         
+        // IMPORTANT INSTRUCTIONS
         const instY = y + 70;
         
         ctx.strokeStyle = '#C9A34E';
@@ -729,11 +494,13 @@ function generateTicketPNG(t) {
         ctx.fillText('• Show this ticket on your device OR print it out', 30, instY + 50);
         ctx.fillText('• Valid ID card is MANDATORY for entry', 30, instY + 70);
         
+        // Footer
         const footerY = instY + 100;
         ctx.fillStyle = '#8a9188';
         ctx.font = "9px Arial";
         ctx.fillText('Issued via TransitCore Ticket Desk · Student Transit, Sorted', 30, footerY);
         
+        // QR Code
         const qrImg = new Image();
         qrImg.crossOrigin = 'anonymous';
         const qrData = encodeURIComponent(`TransitCore|${t.code}|${t.origin}-${t.destination}|${t.travelDate} ${t.travelTime}|${t.custName}|${t.custRegNo}`);
@@ -750,9 +517,7 @@ function generateTicketPNG(t) {
     });
 }
 
-// ============================================
-// ===== SEND AUTO-REPLY EMAIL =====
-// ============================================
+// ===== SEND AUTO-REPLY EMAIL VIA EMAILJS =====
 async function sendAutoReplyEmail(ticket) {
     try {
         const templateParams = {
@@ -786,9 +551,6 @@ async function sendAutoReplyEmail(ticket) {
     }
 }
 
-// ============================================
-// ===== GENERATE TICKET =====
-// ============================================
 async function generateTicket(){
   const origin = document.getElementById('origin').value.trim();
   const destination = document.getElementById('destination').value.trim();
@@ -816,9 +578,8 @@ async function generateTicket(){
     issuedAt: new Date().toISOString()
   };
   
-  // Save to Supabase (if available) and local storage
-  await saveBooking(ticket);
-  
+  bookings.push(ticket);
+  await saveBookings();
   currentTicket = ticket;
   renderTicket(ticket);
   renderHistory();
@@ -827,9 +588,6 @@ async function generateTicket(){
   await sendAutoReplyEmail(ticket);
 }
 
-// ============================================
-// ===== RENDER TICKET =====
-// ============================================
 function renderTicket(t){
   const qrData = encodeURIComponent(`TransitCore|${t.code}|${t.origin}-${t.destination}|${t.travelDate} ${t.travelTime}|${t.custName}|${t.custRegNo}`);
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=140x140&margin=0&data=${qrData}`;
@@ -901,9 +659,6 @@ function ticketMessage(t){
     + `— TransitCore · Student Transit, Sorted`;
 }
 
-// ============================================
-// ===== WHATSAPP =====
-// ============================================
 async function sendWhatsapp(){
   if(!currentTicket) {
     showToast('No ticket to send!', 'error');
@@ -974,9 +729,6 @@ function downloadTicket(){
   });
 }
 
-// ============================================
-// ===== RENDER HISTORY =====
-// ============================================
 function renderHistory(){
   const list = document.getElementById('historyList');
   const q = (document.getElementById('historySearch').value || '').toLowerCase();
@@ -1008,9 +760,7 @@ function reopenTicket(code){
   showToast('🔄 Loaded ticket: ' + t.code, 'success');
 }
 
-// ============================================
-// ===== KEYBOARD SHORTCUTS =====
-// ============================================
+// Keyboard shortcut: Enter to generate
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && document.getElementById('mainScreen').style.display === 'grid') {
     const target = e.target;
@@ -1024,9 +774,7 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
-// ============================================
-// ===== PRE-FILL TIME =====
-// ============================================
+// Pre-fill time
 window.addEventListener('load', () => {
   const now = new Date();
   const hh = String(now.getHours()).padStart(2, '0');
