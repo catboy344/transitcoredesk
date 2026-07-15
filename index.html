@@ -9,6 +9,8 @@
 
 <!-- EmailJS Library -->
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+<!-- Supabase Library -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 
 <style>
   :root{
@@ -31,7 +33,13 @@
   .brand{display:flex;align-items:baseline;gap:10px;}
   .brand .wordmark{font-family:'Fraunces',serif;font-weight:700;font-size:22px;letter-spacing:0.3px;color:var(--ivory);}
   .brand .tagline{font-size:11px;color:var(--sage);text-transform:uppercase;letter-spacing:1.5px;}
+  .topbar-right{display:flex;align-items:center;gap:10px;}
   .desk-label{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--brass-light);border:1px solid var(--line);padding:5px 10px;border-radius:20px;}
+  .sync-badge{font-family:'IBM Plex Mono',monospace;font-size:11px;padding:5px 10px;border-radius:20px;border:1px solid var(--line);display:flex;align-items:center;gap:6px;}
+  .sync-dot{width:7px;height:7px;border-radius:50%;background:#4CAF50;}
+  .sync-dot.offline{background:var(--rust);}
+  .sync-dot.syncing{background:var(--brass);animation:pulse 1s infinite;}
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.3;}}
 
   .gate{flex:1;display:flex;align-items:center;justify-content:center;padding:24px;}
   .gate-card{background:var(--emerald-mid);border:1px solid var(--line);border-radius:14px;padding:36px;max-width:380px;width:100%;text-align:center;}
@@ -133,7 +141,10 @@
       <span class="wordmark">TransitCore</span>
       <span class="tagline">Ticket Desk</span>
     </div>
-    <div class="desk-label" id="deskClock">—</div>
+    <div class="topbar-right">
+      <div class="sync-badge" id="syncBadge"><span class="sync-dot" id="syncDot"></span><span id="syncText">Connecting…</span></div>
+      <div class="desk-label" id="deskClock">—</div>
+    </div>
   </div>
 
   <div id="gateScreen" class="gate">
@@ -248,6 +259,13 @@
 
 <script>
 // ============================================
+// ===== SUPABASE CONFIGURATION =====
+// ============================================
+const SUPABASE_URL = 'https://vrcveqhkxmvmnqeavzrc.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZyY3ZlcWhreG12bW5xZWF2enJjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM3MjkxNzIsImV4cCI6MjA5OTMwNTE3Mn0.aHWBES5ib8FWKgt6JFuq2RWZj0PpFq5W7tyeydIonoI';
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+// ============================================
 // ===== EMAILJS CONFIGURATION =====
 // ============================================
 const EMAILJS_CONFIG = {
@@ -274,7 +292,55 @@ let bookings = [];
 let currentTicket = null;
 
 // ============================================
-// ===== LOCAL STORAGE =====
+// ===== SYNC STATUS UI =====
+// ============================================
+function setSyncStatus(state, text){
+  const dot = document.getElementById('syncDot');
+  const label = document.getElementById('syncText');
+  dot.className = 'sync-dot' + (state === 'offline' ? ' offline' : state === 'syncing' ? ' syncing' : '');
+  label.textContent = text;
+}
+
+// ============================================
+// ===== SUPABASE <-> TICKET MAPPING =====
+// ============================================
+// DB row (snake_case, matches your bookings table) -> app ticket object (camelCase)
+function rowToTicket(r){
+  return {
+    code: r.code,
+    origin: r.origin,
+    destination: r.destination,
+    travelDate: r.travel_date,
+    travelTime: (r.travel_time || '').slice(0,5),
+    operator: r.operator,
+    fare: r.fare,
+    custName: r.cust_name,
+    custPhone: r.cust_phone,
+    custEmail: r.cust_email,
+    custRegNo: r.cust_reg_no,
+    issuedAt: r.issued_at
+  };
+}
+
+// app ticket object -> DB row for insert
+function ticketToRow(t){
+  return {
+    code: t.code,
+    origin: t.origin,
+    destination: t.destination,
+    travel_date: t.travelDate,
+    travel_time: t.travelTime,
+    operator: t.operator,
+    fare: String(t.fare),
+    cust_name: t.custName,
+    cust_phone: t.custPhone,
+    cust_email: t.custEmail,
+    cust_reg_no: t.custRegNo
+  };
+}
+
+// ============================================
+// ===== LOCAL STORAGE (offline fallback/cache) =====
 // ============================================
 function saveToLocalStorage() {
     try {
@@ -297,6 +363,27 @@ function loadFromLocalStorage() {
         console.error('Could not load from local storage:', e);
         return null;
     }
+}
+
+// ============================================
+// ===== SUPABASE LOAD / SAVE =====
+// ============================================
+async function loadFromSupabase(){
+  const { data, error } = await supabaseClient
+    .from('bookings')
+    .select('*')
+    .order('issued_at', { ascending: true });
+
+  if (error) throw error;
+  return (data || []).map(rowToTicket);
+}
+
+async function saveTicketToSupabase(ticket){
+  const { error } = await supabaseClient
+    .from('bookings')
+    .insert([ticketToRow(ticket)]);
+
+  if (error) throw error;
 }
 
 // ============================================
@@ -334,25 +421,48 @@ document.getElementById('gateInput').addEventListener('keydown', e=>{ if(e.key==
 async function init(){
   updateClock();
   document.getElementById('travelDate').valueAsDate = new Date();
-  
-  // Load bookings from localStorage
+
+  // Load from localStorage first for instant UI, then try to sync from Supabase.
   const localData = loadFromLocalStorage();
   if (localData && localData.length > 0) {
     bookings = localData;
-    console.log(`📦 Loaded ${bookings.length} tickets from local storage`);
-  } else {
-    bookings = [];
-    console.log('📦 No local storage data found');
+    renderHistory();
   }
-  
-  renderHistory();
-  showToast('📡 Using local storage', 'success');
+
+  setSyncStatus('syncing', 'Syncing…');
+  try {
+    const remote = await loadFromSupabase();
+    bookings = remote;
+    saveToLocalStorage();
+    renderHistory();
+    setSyncStatus('online', 'Synced');
+    showToast('☁️ Connected to Supabase — ' + bookings.length + ' tickets loaded', 'success');
+  } catch (err) {
+    console.error('Supabase load failed. message:', err && err.message);
+    console.error('Supabase load failed. details:', err && err.details);
+    console.error('Supabase load failed. hint:', err && err.hint);
+    console.error('Supabase load failed. code:', err && err.code);
+    console.error('Supabase load failed. full:', JSON.stringify(err));
+    setSyncStatus('offline', 'Offline (local only)');
+    showToast('⚠️ Could not reach Supabase: ' + (err && err.message ? err.message : 'see console'), 'error');
+  }
 }
 
-function refreshHistory() {
-    loadFromLocalStorage();
-    renderHistory();
-    showToast(`✅ ${bookings.length} tickets loaded`, 'success');
+async function refreshHistory() {
+    setSyncStatus('syncing', 'Refreshing…');
+    try {
+      const remote = await loadFromSupabase();
+      bookings = remote;
+      saveToLocalStorage();
+      renderHistory();
+      setSyncStatus('online', 'Synced');
+      showToast(`✅ ${bookings.length} tickets loaded from Supabase`, 'success');
+    } catch (err) {
+      console.error('Supabase refresh failed. message:', err && err.message);
+      console.error('Supabase refresh failed. full:', JSON.stringify(err));
+      setSyncStatus('offline', 'Offline (local only)');
+      showToast('⚠️ Could not reach Supabase: ' + (err && err.message ? err.message : 'see console'), 'error');
+    }
 }
 
 // ============================================
@@ -596,23 +706,41 @@ async function generateTicket(){
   }
   errEl.textContent='';
 
+  const genBtn = document.getElementById('genBtn');
+  genBtn.disabled = true;
+  genBtn.textContent = 'Generating…';
+
   const code = genCode(custRegNo);
-  
+
   const ticket = {
     code, origin, destination, travelDate, travelTime, operator,
     fare, custName, custPhone, custEmail, custRegNo,
     issuedAt: new Date().toISOString()
   };
-  
-  // Save to bookings array
+
+  try {
+    setSyncStatus('syncing', 'Saving…');
+    await saveTicketToSupabase(ticket);
+    setSyncStatus('online', 'Synced');
+    showToast('☁️ Ticket saved to Supabase: ' + code, 'success');
+  } catch (err) {
+    console.error('Supabase insert failed. message:', err && err.message);
+    console.error('Supabase insert failed. full:', JSON.stringify(err));
+    setSyncStatus('offline', 'Offline — saved locally only');
+    showToast('⚠️ Could not save to Supabase (' + (err && err.message ? err.message : 'see console') + ') — kept locally.', 'error');
+  }
+
+  // Always keep local cache in sync too
   bookings.push(ticket);
   saveToLocalStorage();
-  
+
   currentTicket = ticket;
   renderTicket(ticket);
   renderHistory();
-  
-  showToast('🎫 Ticket generated! Code: ' + code, 'success');
+
+  genBtn.disabled = false;
+  genBtn.textContent = '✨ Generate ticket';
+
   await sendAutoReplyEmail(ticket);
 }
 
